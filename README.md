@@ -34,18 +34,18 @@ Four tiers. Use the cheapest one that fits.
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/card-skill.svg" width="280" alt="Skill — Domain Expert" />
+<img src="assets/card-skill.svg" width="100%" alt="Skill — Domain Expert" />
 </td>
 <td width="50%" align="center">
-<img src="assets/card-marshal.svg" width="280" alt="Marshal — Session Commander" />
+<img src="assets/card-marshal.svg" width="100%" alt="Marshal — Session Commander" />
 </td>
 </tr>
 <tr>
 <td width="50%" align="center">
-<img src="assets/card-archon.svg" width="280" alt="Archon — Autonomous Strategist" />
+<img src="assets/card-archon.svg" width="100%" alt="Archon — Autonomous Strategist" />
 </td>
 <td width="50%" align="center">
-<img src="assets/card-fleet.svg" width="280" alt="Fleet — Parallel Coordinator" />
+<img src="assets/card-fleet.svg" width="100%" alt="Fleet — Parallel Coordinator" />
 </td>
 </tr>
 </table>
