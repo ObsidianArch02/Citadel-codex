@@ -10,16 +10,16 @@ From install to first `/do` command in 5 minutes.
 ## 1. Copy the harness into your project
 
 ```bash
-git clone https://github.com/DevMoses/claude-harness.git
+git clone https://github.com/SethGammon/Citadel.git
 cd your-project
 
 # Copy harness directories (these won't conflict with existing code)
-cp -r ../claude-harness/.claude .
-cp -r ../claude-harness/.planning .
-cp -r ../claude-harness/scripts .
+cp -r ../Citadel/.claude .
+cp -r ../Citadel/.planning .
+cp -r ../Citadel/scripts .
 
 # If you don't have a CLAUDE.md yet, copy the starter
-cp ../claude-harness/CLAUDE.md .
+cp ../Citadel/CLAUDE.md .
 ```
 
 > **Note:** If your project already has a `.gitignore`, append the entries from the harness `.gitignore` rather than overwriting yours.

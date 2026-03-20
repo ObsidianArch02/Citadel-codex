@@ -11,10 +11,10 @@ Built from running 198 autonomous agents across 32 parallel sessions on a produc
 **Requires:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed, [Node.js 18+](https://nodejs.org/) (for hooks and scripts)
 
 ```bash
-git clone https://github.com/DevMoses/claude-harness.git
-cp -r claude-harness/.claude ./
-cp -r claude-harness/.planning ./
-cp -r claude-harness/scripts ./
+git clone https://github.com/SethGammon/Citadel.git
+cp -r Citadel/.claude ./
+cp -r Citadel/.planning ./
+cp -r Citadel/scripts ./
 ```
 
 Then open your project in Claude Code (`cd your-project && claude`) and run:
@@ -268,6 +268,6 @@ MIT
 
 ## Author
 
-Seth Gammon ([@DevMoses](https://github.com/DevMoses))
+Seth Gammon ([@SethGammon](https://github.com/SethGammon))
 
-Built while managing a 180K-line codebase solo. The harness is the distillation of what actually works when you run agents at scale.
+Built while managing a 668K-line codebase solo. The harness is the distillation of what actually works when you run agents at scale.
