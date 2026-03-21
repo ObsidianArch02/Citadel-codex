@@ -93,6 +93,8 @@ frontmatter for name and description.
 | "research", "investigate", "look into", "find out" | `/research` |
 | "experiment", "optimize", "try", "A/B", "measure" | `/experiment` |
 | "debug", "root cause", "diagnose", "why is", "investigate bug" | `/systematic-debugging` |
+| "research fleet", "parallel research", "multi-angle research", "compare options" | `/research-fleet` |
+| "preview", "screenshot", "visual check", "does it render" | `/live-preview` |
 
 If ONE skill matches with high confidence → invoke it directly. Done.
 If MULTIPLE skills match → fall through to Tier 3.
@@ -169,7 +171,7 @@ ORCHESTRATION
   /do [intent]          Universal router
   /marshal [direction]  Single-session orchestrator
   /archon [direction]   Multi-session campaigns
-  /fleet [direction]    Parallel campaign orchestrator
+  /fleet [direction]    Parallel campaigns with coordination safety
   /autopilot            Intake-to-delivery pipeline
 
 SKILLS
@@ -182,8 +184,10 @@ SKILLS
 
 RESEARCH & DEBUGGING
   /research             Structured investigation with findings
+  /research-fleet       Parallel multi-scout research
   /experiment           Metric-driven optimization loops
   /systematic-debugging Root cause analysis (4-phase)
+  /live-preview         Mid-build visual verification
 
 UTILITIES
   /session-handoff      Session context transfer

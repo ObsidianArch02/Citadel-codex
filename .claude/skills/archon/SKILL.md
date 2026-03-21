@@ -130,8 +130,10 @@ After each phase completes:
    - TypeScript strict mode? Types correct, not `any`-heavy?
    - Clean structure? Not a 500-line monolith?
    - Follows project conventions from CLAUDE.md?
-3. If quality is acceptable: continue
-4. If quality is below bar: add a remediation task to the current phase
+3. If view files (.tsx, .jsx, .vue, .svelte, .html) were modified, invoke
+   /live-preview to verify components render correctly
+4. If quality is acceptable: continue
+5. If quality is below bar: add a remediation task to the current phase
    before marking complete
 
 #### Regression Guard (every build phase)

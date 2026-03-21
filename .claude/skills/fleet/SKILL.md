@@ -7,7 +7,7 @@ description: >-
   into 3+ independent streams that can run simultaneously.
 user-invocable: true
 auto-trigger: false
-last-updated: 2026-03-20
+last-updated: 2026-03-21
 ---
 
 # /fleet — Parallel Coordinator
@@ -222,6 +222,55 @@ Also check `.planning/coordination/claims/` for external claims.
 - Discovery relay must be injected into subsequent waves
 - Merge conflicts must be resolved or explicitly recorded
 - Final typecheck must pass after all waves
+
+## Coordination Safety
+
+### Instance ID Generation
+
+Every agent spawned by Fleet must have a unique instance ID.
+
+Format: `fleet-{session-slug}-{wave}-{agent-index}`
+Example: `fleet-auth-refactor-w1-a3` (wave 1, agent 3)
+
+The instance ID is:
+- Written to the agent's worktree as `.fleet-instance-id`
+- Included in all telemetry log entries for this agent
+- Used in coordination claims to identify which agent owns which scope
+- Used in dead instance recovery to identify orphaned claims
+
+### Scope Overlap Detection
+
+Before spawning a wave, Fleet must validate that no two agents in the wave
+claim overlapping file scopes.
+
+Protocol:
+1. After decomposing tasks for the wave, extract each agent's file scope
+2. Compare all scopes pairwise:
+   - If Agent A's scope includes `src/auth/` and Agent B's scope includes `src/auth/login.ts`,
+     that's an overlap
+   - Directory scopes overlap with any file scope inside that directory
+3. If overlap detected:
+   - Option 1: Merge the overlapping tasks into one agent
+   - Option 2: Narrow scopes so they don't overlap
+   - Option 3: Sequence them (agent B waits for agent A to merge first)
+4. NEVER proceed with overlapping scopes. This is a hard gate.
+
+### Dead Instance Recovery
+
+After each wave completes, Fleet must check for orphaned claims.
+
+Protocol:
+1. Read all claim files in `.planning/coordination/claims/`
+2. For each claim, check if the claiming instance is still alive:
+   - Does the worktree still exist?
+   - Did the agent complete (check for HANDOFF or completion signal)?
+3. If an instance is dead but its claim still exists:
+   - Log a warning: "Dead instance {id} left orphaned claim on {scope}"
+   - Release the claim (delete the claim file)
+   - Add the uncompleted work back to the task queue for the next wave
+4. Run this check:
+   - After every wave completes
+   - Before spawning a new wave (clear stale claims first)
 
 ## Exit Protocol
 
