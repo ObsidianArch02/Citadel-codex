@@ -9,7 +9,7 @@
  *   - Go: go vet on the package
  *   - Rust: cargo check (whole project, but fast with incremental)
  *
- * Also runs lightweight performance lint on the changed file.
+ * Also runs lightweight performance lint and dependency-aware pattern detection.
  *
  * Exit codes:
  *   0 = success (or non-checkable file, or non-Edit/Write tool)
@@ -53,8 +53,9 @@ function main() {
 
     const relativePath = path.relative(PROJECT_ROOT, filePath).replace(/\\/g, '/');
 
-    // Run performance lint
+    // Run performance lint and dependency pattern checks
     performanceLint(filePath, relativePath);
+    dependencyPatternLint(filePath, relativePath);
 
     // Run type check
     const exitCode = typeCheck(filePath, relativePath);
@@ -242,6 +243,64 @@ function performanceLint(filePath, relativePath) {
   if (warnings.length > 0) {
     process.stdout.write(
       `[lint] ${relativePath}:\n` + warnings.map(w => `  - ${w}`).join('\n') + '\n'
+    );
+  }
+}
+
+// ── Dependency-Aware Pattern Detection ────────────────────────────────────────
+
+// Cache package.json deps for the session (process lifetime)
+let _cachedDeps = null;
+
+function getProjectDeps() {
+  if (_cachedDeps !== null) return _cachedDeps;
+  try {
+    const pkgPath = path.join(PROJECT_ROOT, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    _cachedDeps = {
+      ...pkg.dependencies,
+      ...pkg.devDependencies,
+    };
+  } catch {
+    _cachedDeps = {};
+  }
+  return _cachedDeps;
+}
+
+function dependencyPatternLint(filePath, relativePath) {
+  // Only check source files
+  if (!/\.(ts|tsx|js|jsx)$/.test(filePath)) return;
+
+  const config = health.readConfig();
+  const patterns = config.dependencyPatterns;
+  if (!patterns || !Array.isArray(patterns) || patterns.length === 0) return;
+
+  let content;
+  try {
+    content = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return;
+  }
+
+  const deps = getProjectDeps();
+  const warnings = [];
+
+  for (const entry of patterns) {
+    if (!entry.dependency || !deps[entry.dependency]) continue;
+    if (!Array.isArray(entry.banned)) continue;
+
+    for (const banned of entry.banned) {
+      if (content.includes(banned)) {
+        const msg = entry.message || 'Use the library instead.';
+        warnings.push('Found ' + banned + ' but ' + entry.dependency + ' is installed. ' + msg);
+        break; // One warning per dependency, not per match
+      }
+    }
+  }
+
+  if (warnings.length > 0) {
+    process.stdout.write(
+      '[dep-lint] ' + relativePath + ':\n' + warnings.map(function(w) { return '  - ' + w; }).join('\n') + '\n'
     );
   }
 }

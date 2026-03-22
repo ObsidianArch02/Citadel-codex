@@ -133,6 +133,23 @@ read each SKILL.md frontmatter, and populate `registeredSkills` with every skill
 Set `registeredSkillCount` to match. This is the full registry rebuild that `/do`'s
 Step 0 defers to.
 
+**Dependency pattern suggestions:** After detecting the stack, read `package.json`
+and check for common libraries that have known anti-patterns:
+
+| If Installed | Suggest Banning | Message |
+|---|---|---|
+| `@tanstack/react-query` | `fetch(`, `axios(`, `XMLHttpRequest` | Use tanstack query instead of raw fetch |
+| `zustand` | `React.createContext`, `useContext` | Use Zustand store instead of React Context |
+| `date-fns` | `new Date().toLocaleDateString`, `moment(` | Use date-fns for date formatting |
+| `zod` | `typeof `, `instanceof ` | Use Zod schemas for runtime validation |
+
+For each match: **ask the user** before adding. Present the suggestion and let them
+accept or skip. Example: "I see @tanstack/react-query is installed. Want me to warn
+agents when they use raw fetch() instead? (y/n)"
+
+Add accepted patterns to the `dependencyPatterns` array in harness.json. Users can
+add their own patterns later — the format is documented in docs/HOOKS.md.
+
 **Language-specific typecheck configuration:**
 
 | Language | Command | Per-file? |
