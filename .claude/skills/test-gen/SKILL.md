@@ -1,7 +1,7 @@
 ---
 name: test-gen
 description: Generate and verify tests — happy path, edge cases, error paths — using the project's own framework and patterns
-user_invocable: true
+user-invocable: true
 trigger_keywords:
   - /test-gen
   - generate tests

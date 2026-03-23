@@ -163,6 +163,17 @@ Automated quality enforcement that runs without you thinking about it.
 | Post-compaction restore | After context compaction | Restores session state from saved snapshot |
 | Worktree setup | Agent spawn | Auto-installs deps in parallel agent worktrees |
 
+## Sub-Agents (4)
+
+Specialized agents that Archon and Fleet spawn as sub-processes. You don't invoke these directly — they're internal workers.
+
+| Agent | What It Does |
+|---|---|
+| Archon | Autonomous campaign executor — decomposes phases, delegates, reviews, self-corrects |
+| Fleet | Parallel coordinator — runs 2-3 agents in isolated worktrees per wave |
+| Arch Reviewer | Read-only architecture auditor — checks boundary violations and import rules |
+| Knowledge Extractor | Extracts reusable patterns and decisions from completed work into the knowledge base |
+
 ## Campaign Persistence
 
 Work survives across sessions. Close the terminal, come back tomorrow, `/do continue` picks up where you left off.

@@ -1,7 +1,7 @@
 ---
 name: review
 description: 5-pass structured code review — correctness, security, performance, readability, consistency
-user_invocable: true
+user-invocable: true
 trigger_keywords:
   - /review
   - code review
