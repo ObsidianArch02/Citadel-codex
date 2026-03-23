@@ -8,6 +8,8 @@ Run autonomous coding campaigns with Claude Code. Route any task through the rig
 
 **24 skills | 3 autonomous agents | 8 lifecycle hooks | campaign persistence | fleet coordination**
 
+<img src="assets/citadel-overview.svg" width="100%" alt="Citadel system overview — app creation pipeline and safety systems" />
+
 ## Quickstart
 
 **Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + [Node.js 18+](https://nodejs.org/)
@@ -16,7 +18,27 @@ Run autonomous coding campaigns with Claude Code. Route any task through the rig
 # 1. Clone and copy into your project
 git clone https://github.com/SethGammon/Citadel.git
 cp -r Citadel/.claude Citadel/.planning Citadel/scripts your-project/
+```
 
+<details>
+<summary>Windows? Use PowerShell or Command Prompt instead</summary>
+
+**PowerShell:**
+```powershell
+git clone https://github.com/SethGammon/Citadel.git
+Copy-Item -Recurse Citadel\.claude, Citadel\.planning, Citadel\scripts your-project\
+```
+
+**Command Prompt:**
+```cmd
+git clone https://github.com/SethGammon/Citadel.git
+xcopy /E /I Citadel\.claude your-project\.claude
+xcopy /E /I Citadel\.planning your-project\.planning
+xcopy /E /I Citadel\scripts your-project\scripts
+```
+</details>
+
+```bash
 # 2. Run setup (inside Claude Code)
 /do setup
 
@@ -36,6 +58,22 @@ That's it. [Full install guide →](QUICKSTART.md)
 ```
 
 Say what you want. `/do` routes it to the cheapest tool that can handle it.
+
+## How It Works
+
+You type what you want. `/do` classifies your intent and picks the cheapest tool that can handle it — no menus, no flags, no routing decisions on your end.
+
+```
+You say:                               Citadel runs:
+─────────────────────────────────────────────────────────────
+"fix the typo on line 42"          →   Direct edit (zero overhead)
+"review the auth module"           →   /review (5-pass code review)
+"add payments to my app"           →   /create-app tier 5 (feature addition)
+"build me a recipe app"            →   /create-app → /prd → /architect → /archon
+"overhaul all three services"      →   /fleet (parallel agents)
+```
+
+Simple tasks get simple tools. Complex tasks get campaigns with phases, verification, and self-correction. You never have to choose.
 
 ## The Orchestration Ladder
 
@@ -116,12 +154,13 @@ Automated quality enforcement that runs without you thinking about it.
 
 | Hook | When | What It Does |
 |---|---|---|
-| Per-file typecheck | Every edit | Catches type errors at write-time |
+| Per-file typecheck | Every edit | Catches type errors at write-time, design manifest deviations |
 | Circuit breaker | Tool failure | After 3 failures: "try a different approach" |
 | Quality gate | Session end | Scans for anti-patterns in modified files |
 | Intake scanner | Session start | Reports pending work items |
 | File protection | Before edit/read | Blocks edits to protected files, blocks reads on .env secrets |
-| Context preservation | Before/after compaction | Saves and restores session state |
+| Pre-compaction save | Before context compaction | Saves session state so nothing is lost |
+| Post-compaction restore | After context compaction | Restores session state from saved snapshot |
 | Worktree setup | Agent spawn | Auto-installs deps in parallel agent worktrees |
 
 ## Campaign Persistence
@@ -138,9 +177,15 @@ Run 2-3 agents simultaneously in isolated worktrees. Discoveries compress into ~
 
 **How is this different from CLAUDE.md?** — CLAUDE.md tells Claude about your project. The harness tells Claude *how to work*: routing, persistence, quality enforcement, parallel coordination.
 
+**Do I need to learn all 24 skills?** — No. Just use `/do` and describe what you want in plain English. The router picks the right skill. You can go months without ever typing a skill name directly.
+
+**What if `/do` routes to the wrong tool?** — Tell it. "Wrong tool" or "just do it yourself" and it adjusts. You can also invoke any skill directly: `/review`, `/archon`, etc. The router is a convenience, not a gate.
+
 **How much does it cost in tokens?** — Skills cost zero when not loaded. The `/do` router costs ~500 tokens only at Tier 3. Hooks add ~100 tokens per edit. The main cost is the work itself.
 
 **Can I use this with other AI tools?** — Designed for Claude Code specifically. The concepts are portable but the implementation uses Claude Code's extension points.
+
+**Does this work on Windows?** — Yes. All hooks and scripts run on Node.js. The [quickstart](#quickstart) has install commands for Bash, PowerShell, and Command Prompt.
 
 ## Learn More
 
