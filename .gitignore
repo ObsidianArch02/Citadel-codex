@@ -2,6 +2,7 @@
 .claude/circuit-breaker-state.json
 .claude/compact-state.json
 .claude/harness.json
+.claude/settings.json
 .claude/settings.local.json
 
 # Per-project scaffolded state (created by init-project hook)

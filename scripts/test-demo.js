@@ -72,7 +72,7 @@ const POOL_EXPECTATIONS = {
 // Parse data-cmd attributes and their expected color from style="--ex-color:..."
 
 // Attributes appear in either order in the HTML, so match both
-const HOW_EXAMPLE_RE = /(?:data-cmd="([^"]+)"[^>]*style="--ex-color:([^"]+)"|style="--ex-color:([^"]+)"[^>]*data-cmd="([^"]+)")/g;
+const HOW_EXAMPLE_RE = /(?:data-cmd="([^"]+)"[^>]*style="--ex-color:([^";]+)"|style="--ex-color:([^";]+)"[^>]*data-cmd="([^"]+)")/g;
 const howExamples = [];
 let m;
 while ((m = HOW_EXAMPLE_RE.exec(html)) !== null) {
