@@ -11,6 +11,10 @@
 
 </div>
 
+## Why Citadel Exists
+
+Claude Code is powerful, but it forgets everything between sessions, can't coordinate parallel work, and has no way to learn from its own mistakes. I hit those walls building a 668K-line TypeScript platform with AI agents handling the work. Citadel is what I built to fix it: persistent memory, intelligent routing, and a skill system that turns one-off solutions into reusable capabilities.
+
 ## Quickstart
 
 **Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + [Node.js 18+](https://nodejs.org/)

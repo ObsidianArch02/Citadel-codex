@@ -41,11 +41,6 @@
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
 
-    <!-- Clip for header section -->
-    <clipPath id="ch-header-clip">
-      <rect width="1200" height="210"/>
-    </clipPath>
-
     <!-- CSS Animations -->
     <style>
       .ch-mono { font-family: 'SF Mono','Cascadia Code','Consolas',monospace; }
@@ -125,7 +120,6 @@
   <rect x="0" y="0" width="1200" height="210" fill="url(#ch-hero-glow)"/>
 
   <!-- Decorative node cluster (right side of header) -->
-  <!-- Node connections -->
   <line x1="920" y1="60" x2="980" y2="100" stroke="#00d2ff" stroke-width="0.8" opacity="0.12"/>
   <line x1="980" y1="100" x2="1050" y2="70" stroke="#3a7bd5" stroke-width="0.8" opacity="0.12"/>
   <line x1="1050" y1="70" x2="1110" y2="120" stroke="#7b2ff7" stroke-width="0.8" opacity="0.12"/>
@@ -139,15 +133,12 @@
   <circle cx="1050" cy="70" r="4" fill="#7b2ff7" opacity="0.35" class="ch-dot" style="animation-delay:1.6s"/>
   <circle cx="1110" cy="120" r="5" fill="#00d2ff" opacity="0.3" class="ch-dot" style="animation-delay:0.4s"/>
   <circle cx="1040" cy="150" r="4" fill="#3a7bd5" opacity="0.3" class="ch-dot" style="animation-delay:2s"/>
-  <!-- Outer rings on nodes -->
   <circle cx="980" cy="100" r="14" fill="none" stroke="#3a7bd5" stroke-width="0.5" opacity="0.2"/>
   <circle cx="1050" cy="70" r="12" fill="none" stroke="#7b2ff7" stroke-width="0.5" opacity="0.2"/>
 
   <!-- CITADEL title (large, gradient) -->
-  <!-- Shadow/glow layer -->
   <text x="60" y="100" class="ch-sans" font-size="72" font-weight="900" fill="#00d2ff" opacity="0.06"
     filter="url(#ch-glow-title)" letter-spacing="6">CITADEL</text>
-  <!-- Main title -->
   <text x="60" y="100" class="ch-sans" font-size="72" font-weight="900" fill="url(#ch-title)" letter-spacing="6">CITADEL</text>
 
   <!-- Accent line under title -->
@@ -158,16 +149,12 @@
   <text x="60" y="168" class="ch-sans" font-size="20" fill="#c9d1d9" font-weight="500" letter-spacing="0.3">Autonomous Engineering</text>
 
   <!-- Stat pills -->
-  <!-- 33 skills -->
   <rect x="60" y="184" width="90" height="22" rx="11" fill="#0d2020" stroke="#00d2ff" stroke-width="1" stroke-opacity="0.6"/>
   <text x="105" y="199" class="ch-mono" font-size="10" fill="#00d2ff" text-anchor="middle" letter-spacing="0.5">33 skills</text>
-  <!-- 4 agents -->
   <rect x="160" y="184" width="84" height="22" rx="11" fill="#0d1a2a" stroke="#58a6ff" stroke-width="1" stroke-opacity="0.6"/>
   <text x="202" y="199" class="ch-mono" font-size="10" fill="#58a6ff" text-anchor="middle" letter-spacing="0.5">4 agents</text>
-  <!-- 14 hooks -->
   <rect x="254" y="184" width="80" height="22" rx="11" fill="#1a0d2a" stroke="#bc8cff" stroke-width="1" stroke-opacity="0.6"/>
   <text x="294" y="199" class="ch-mono" font-size="10" fill="#bc8cff" text-anchor="middle" letter-spacing="0.5">14 hooks</text>
-  <!-- campaign persistence -->
   <rect x="344" y="184" width="150" height="22" rx="11" fill="#1a1000" stroke="#f0883e" stroke-width="1" stroke-opacity="0.6"/>
   <text x="419" y="199" class="ch-mono" font-size="10" fill="#f0883e" text-anchor="middle" letter-spacing="0.5">campaign persistence</text>
 
@@ -191,105 +178,97 @@
   <line x1="452" y1="244" x2="452" y2="608" stroke="#1c2330" stroke-width="1"/>
   <line x1="654" y1="244" x2="654" y2="608" stroke="#1c2330" stroke-width="1"/>
 
-  <!-- ─── ROW 1 · green · Tier 0 · Direct Edit ─── -->
+  <!-- ─── ROW 1 · green · Tier 0 · Direct Edit · centerY=289 ─── -->
   <rect x="0" y="245" width="1200" height="88" fill="url(#ch-row1-bg)"/>
   <rect x="0" y="245" width="4" height="88" fill="#3fb950" opacity="0.8"/>
 
-  <text x="48" y="280" class="ch-mono" font-size="15" fill="#79c0ff" font-weight="500">"fix the typo on line 42"</text>
-  <text x="48" y="299" class="ch-mono" font-size="10" fill="#3fb950" opacity="0.9">pattern: "fix typo in X"  ·  ~0 tokens  ·  &lt;1ms</text>
-  <text x="48" y="317" class="ch-sans" font-size="10" fill="#4a5568">Regex on raw input. No model call.</text>
+  <text x="48" y="296" class="ch-mono" font-size="18" fill="#79c0ff" font-weight="500">"fix the typo on line 42"</text>
 
   <line x1="452" y1="289" x2="470" y2="289" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="467,285 477,289 467,293" fill="#3fb950" opacity="0.7"/>
 
-  <rect x="479" y="268" width="162" height="42" rx="8" fill="#0a1a0a" stroke="#3fb950" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="560" y="284" class="ch-sans" font-size="11" fill="#3fb950" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 0</text>
-  <text x="560" y="300" class="ch-sans" font-size="10" fill="#3fb950" text-anchor="middle" opacity="0.7">Pattern Match</text>
+  <rect x="479" y="264" width="162" height="50" rx="8" fill="#0a1a0a" stroke="#3fb950" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="560" y="283" class="ch-sans" font-size="12" fill="#3fb950" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 0</text>
+  <text x="560" y="301" class="ch-sans" font-size="11" fill="#3fb950" text-anchor="middle" opacity="0.7">Pattern Match</text>
 
   <line x1="641" y1="289" x2="659" y2="289" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="656,285 666,289 656,293" fill="#3fb950" opacity="0.7"/>
 
-  <rect x="668" y="263" width="268" height="52" rx="8" fill="#0a1a0a" stroke="#3fb950" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="688" y="285" class="ch-sans" font-size="16" fill="#3fb950" font-weight="600">✎  Direct Edit</text>
-  <text x="688" y="304" class="ch-sans" font-size="10" fill="#3fb950" opacity="0.6">zero overhead · no skill loaded</text>
+  <rect x="668" y="259" width="290" height="60" rx="8" fill="#0a1a0a" stroke="#3fb950" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="688" y="282" class="ch-sans" font-size="19" fill="#3fb950" font-weight="600">✎  Direct Edit</text>
+  <text x="688" y="304" class="ch-sans" font-size="11" fill="#3fb950" opacity="0.6">zero overhead · no skill loaded</text>
 
   <circle class="ch-p1" cx="452" cy="289" r="5" fill="#3fb950" filter="url(#ch-glow)" opacity="0"/>
-  <circle class="ch-ring1 ch-ring1-r" cx="802" cy="289" fill="none" stroke="#3fb950" stroke-width="1.5" opacity="0"/>
+  <circle class="ch-ring1 ch-ring1-r" cx="813" cy="289" fill="none" stroke="#3fb950" stroke-width="1.5" opacity="0"/>
 
-  <!-- ─── ROW 2 · blue · Tier 2 · /review ─── -->
+  <!-- ─── ROW 2 · blue · Tier 2 · /review · centerY=377 ─── -->
   <rect x="0" y="333" width="1200" height="88" fill="url(#ch-row2-bg)"/>
   <rect x="0" y="333" width="4" height="88" fill="#58a6ff" opacity="0.8"/>
 
-  <text x="48" y="368" class="ch-mono" font-size="15" fill="#79c0ff" font-weight="500">"review the auth module"</text>
-  <text x="48" y="387" class="ch-mono" font-size="10" fill="#58a6ff" opacity="0.9">keyword: "review"  ·  ~0 tokens  ·  keyword table hit</text>
-  <text x="48" y="405" class="ch-sans" font-size="10" fill="#4a5568">Matched against skill keyword table. No LLM needed.</text>
+  <text x="48" y="384" class="ch-mono" font-size="18" fill="#79c0ff" font-weight="500">"review the auth module"</text>
 
   <line x1="452" y1="377" x2="470" y2="377" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="467,373 477,377 467,381" fill="#58a6ff" opacity="0.7"/>
 
-  <rect x="479" y="356" width="162" height="42" rx="8" fill="#080e1a" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="560" y="372" class="ch-sans" font-size="11" fill="#58a6ff" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 2</text>
-  <text x="560" y="388" class="ch-sans" font-size="10" fill="#58a6ff" text-anchor="middle" opacity="0.7">Keyword Match</text>
+  <rect x="479" y="352" width="162" height="50" rx="8" fill="#080e1a" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="560" y="371" class="ch-sans" font-size="12" fill="#58a6ff" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 2</text>
+  <text x="560" y="389" class="ch-sans" font-size="11" fill="#58a6ff" text-anchor="middle" opacity="0.7">Keyword Match</text>
 
   <line x1="641" y1="377" x2="659" y2="377" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="656,373 666,377 656,381" fill="#58a6ff" opacity="0.7"/>
 
-  <rect x="668" y="351" width="268" height="52" rx="8" fill="#080e1a" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="688" y="373" class="ch-sans" font-size="16" fill="#58a6ff" font-weight="600">◆  /review</text>
-  <text x="688" y="392" class="ch-sans" font-size="10" fill="#58a6ff" opacity="0.6">5-pass structured code review</text>
+  <rect x="668" y="347" width="290" height="60" rx="8" fill="#080e1a" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="688" y="370" class="ch-sans" font-size="19" fill="#58a6ff" font-weight="600">◆  /review</text>
+  <text x="688" y="392" class="ch-sans" font-size="11" fill="#58a6ff" opacity="0.6">5-pass structured code review</text>
 
   <circle class="ch-p2" cx="452" cy="377" r="5" fill="#58a6ff" filter="url(#ch-glow)" opacity="0"/>
-  <circle class="ch-ring2 ch-ring2-r" cx="802" cy="377" fill="none" stroke="#58a6ff" stroke-width="1.5" opacity="0"/>
+  <circle class="ch-ring2 ch-ring2-r" cx="813" cy="377" fill="none" stroke="#58a6ff" stroke-width="1.5" opacity="0"/>
 
-  <!-- ─── ROW 3 · orange · Tier 3 · /archon ─── -->
+  <!-- ─── ROW 3 · orange · Tier 3 · /archon · centerY=465 ─── -->
   <rect x="0" y="421" width="1200" height="88" fill="url(#ch-row3-bg)"/>
   <rect x="0" y="421" width="4" height="88" fill="#f0883e" opacity="0.8"/>
 
-  <text x="48" y="456" class="ch-mono" font-size="15" fill="#79c0ff" font-weight="500">"build me a recipe app"</text>
-  <text x="48" y="475" class="ch-mono" font-size="10" fill="#f0883e" opacity="0.9">intent: create  ·  complexity: 4  ·  persist: true  ·  ~500 tokens</text>
-  <text x="48" y="493" class="ch-sans" font-size="10" fill="#4a5568">LLM classifies 6 dimensions. Routes to cheapest capable path.</text>
+  <text x="48" y="472" class="ch-mono" font-size="18" fill="#79c0ff" font-weight="500">"build me a recipe app"</text>
 
   <line x1="452" y1="465" x2="470" y2="465" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="467,461 477,465 467,469" fill="#f0883e" opacity="0.7"/>
 
-  <rect x="479" y="444" width="162" height="42" rx="8" fill="#160d02" stroke="#f0883e" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="560" y="460" class="ch-sans" font-size="11" fill="#f0883e" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 3</text>
-  <text x="560" y="476" class="ch-sans" font-size="10" fill="#f0883e" text-anchor="middle" opacity="0.7">LLM Classifier</text>
+  <rect x="479" y="440" width="162" height="50" rx="8" fill="#160d02" stroke="#f0883e" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="560" y="459" class="ch-sans" font-size="12" fill="#f0883e" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 3</text>
+  <text x="560" y="477" class="ch-sans" font-size="11" fill="#f0883e" text-anchor="middle" opacity="0.7">LLM Classifier</text>
 
   <line x1="641" y1="465" x2="659" y2="465" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="656,461 666,465 656,469" fill="#f0883e" opacity="0.7"/>
 
-  <rect x="668" y="439" width="268" height="52" rx="8" fill="#160d02" stroke="#f0883e" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="688" y="461" class="ch-sans" font-size="16" fill="#f0883e" font-weight="600">⬡  /archon</text>
-  <text x="688" y="480" class="ch-sans" font-size="10" fill="#f0883e" opacity="0.6">multi-session campaign · self-correction</text>
+  <rect x="668" y="435" width="290" height="60" rx="8" fill="#160d02" stroke="#f0883e" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="688" y="458" class="ch-sans" font-size="19" fill="#f0883e" font-weight="600">⬡  /archon</text>
+  <text x="688" y="480" class="ch-sans" font-size="11" fill="#f0883e" opacity="0.6">multi-session campaign · self-correction</text>
 
   <circle class="ch-p3" cx="452" cy="465" r="5" fill="#f0883e" filter="url(#ch-glow)" opacity="0"/>
-  <circle class="ch-ring3 ch-ring3-r" cx="802" cy="465" fill="none" stroke="#f0883e" stroke-width="1.5" opacity="0"/>
+  <circle class="ch-ring3 ch-ring3-r" cx="813" cy="465" fill="none" stroke="#f0883e" stroke-width="1.5" opacity="0"/>
 
-  <!-- ─── ROW 4 · purple · Tier 3 · /fleet ─── -->
+  <!-- ─── ROW 4 · purple · Tier 3 · /fleet · centerY=553 ─── -->
   <rect x="0" y="509" width="1200" height="88" fill="url(#ch-row4-bg)"/>
   <rect x="0" y="509" width="4" height="88" fill="#bc8cff" opacity="0.8"/>
 
-  <text x="48" y="544" class="ch-mono" font-size="15" fill="#79c0ff" font-weight="500">"overhaul all three services"</text>
-  <text x="48" y="563" class="ch-mono" font-size="10" fill="#bc8cff" opacity="0.9">intent: redesign  ·  scope: platform  ·  parallel: true  ·  ~500 tokens</text>
-  <text x="48" y="581" class="ch-sans" font-size="10" fill="#4a5568">Platform-wide parallel execution across isolated git worktrees.</text>
+  <text x="48" y="560" class="ch-mono" font-size="18" fill="#79c0ff" font-weight="500">"overhaul all three services"</text>
 
   <line x1="452" y1="553" x2="470" y2="553" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="467,549 477,553 467,557" fill="#bc8cff" opacity="0.7"/>
 
-  <rect x="479" y="532" width="162" height="42" rx="8" fill="#0e0918" stroke="#bc8cff" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="560" y="548" class="ch-sans" font-size="11" fill="#bc8cff" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 3</text>
-  <text x="560" y="564" class="ch-sans" font-size="10" fill="#bc8cff" text-anchor="middle" opacity="0.7">LLM Classifier</text>
+  <rect x="479" y="528" width="162" height="50" rx="8" fill="#0e0918" stroke="#bc8cff" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="560" y="547" class="ch-sans" font-size="12" fill="#bc8cff" text-anchor="middle" font-weight="700" letter-spacing="2">TIER 3</text>
+  <text x="560" y="565" class="ch-sans" font-size="11" fill="#bc8cff" text-anchor="middle" opacity="0.7">LLM Classifier</text>
 
   <line x1="641" y1="553" x2="659" y2="553" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
   <polygon points="656,549 666,553 656,557" fill="#bc8cff" opacity="0.7"/>
 
-  <rect x="668" y="527" width="268" height="52" rx="8" fill="#0e0918" stroke="#bc8cff" stroke-width="1.5" stroke-opacity="0.9"/>
-  <text x="688" y="549" class="ch-sans" font-size="16" fill="#bc8cff" font-weight="600">⬢  /fleet</text>
-  <text x="688" y="568" class="ch-sans" font-size="10" fill="#bc8cff" opacity="0.6">parallel agents · isolated git worktrees</text>
+  <rect x="668" y="523" width="290" height="60" rx="8" fill="#0e0918" stroke="#bc8cff" stroke-width="1.5" stroke-opacity="0.9"/>
+  <text x="688" y="546" class="ch-sans" font-size="19" fill="#bc8cff" font-weight="600">⬢  /fleet</text>
+  <text x="688" y="568" class="ch-sans" font-size="11" fill="#bc8cff" opacity="0.6">parallel agents · isolated git worktrees</text>
 
   <circle class="ch-p4" cx="452" cy="553" r="5" fill="#bc8cff" filter="url(#ch-glow)" opacity="0"/>
-  <circle class="ch-ring4 ch-ring4-r" cx="802" cy="553" fill="none" stroke="#bc8cff" stroke-width="1.5" opacity="0"/>
+  <circle class="ch-ring4 ch-ring4-r" cx="813" cy="553" fill="none" stroke="#bc8cff" stroke-width="1.5" opacity="0"/>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <!-- FOOTER                                                              -->
