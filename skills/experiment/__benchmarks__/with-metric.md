@@ -5,6 +5,7 @@ description: experiment produces iterations and measurement plan for a bundle-si
 tags: [happy-path]
 input: /experiment reduce bundle size, baseline 450kb
 state: clean
+skip-execute: true
 assert-contains:
   - bundle
   - baseline

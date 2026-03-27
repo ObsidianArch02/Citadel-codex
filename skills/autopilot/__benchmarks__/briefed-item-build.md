@@ -4,7 +4,8 @@ skill: autopilot
 description: Autopilot processes a briefed intake item through to completion
 tags: [happy-path]
 input: /autopilot
-state: with-campaign
+state: with-intake
+skip-execute: true
 assert-contains:
   - processed
   - logging

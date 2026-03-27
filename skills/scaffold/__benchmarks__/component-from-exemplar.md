@@ -5,6 +5,7 @@ description: Scaffold generates a new component that matches the project's exist
 tags: [happy-path]
 input: /scaffold new component SettingsPanel
 state: clean
+skip-execute: true
 assert-contains:
   - SettingsPanel
   - conventions

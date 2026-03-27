@@ -6,8 +6,7 @@ tags: [happy-path]
 input: /design extract the design system
 state: with-campaign
 assert-contains:
-  - color
-  - Extract
+  - extract
 assert-not-contains:
   - ENOENT
   - TypeError

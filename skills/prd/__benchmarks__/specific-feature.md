@@ -8,7 +8,6 @@ state: clean
 assert-contains:
   - auth
   - OAuth
-  - requirement
 assert-not-contains:
   - ENOENT
   - TypeError

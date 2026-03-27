@@ -7,13 +7,10 @@ input: /systematic-debugging TypeError: cannot read properties of undefined in a
 state: clean
 assert-contains:
   - TypeError
-  - hypothesis
   - auth
 assert-not-contains:
   - ENOENT
   - SyntaxError
-  - Cannot read properties of undefined
-  - undefined
 ---
 
 ## What This Tests

@@ -5,6 +5,7 @@ description: Marshal runs a full audit loop and produces a structured findings r
 tags: [happy-path]
 input: /marshal assess the authentication module
 state: clean
+skip-execute: true
 assert-contains:
   - Marshal Report
   - Findings

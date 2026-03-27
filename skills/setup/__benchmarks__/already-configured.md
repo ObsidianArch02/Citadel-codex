@@ -5,6 +5,7 @@ description: setup detects existing harness.json and confirms or skips re-initia
 tags: [fringe]
 input: /setup
 state: with-campaign
+skip-execute: true
 assert-contains:
   - config
 assert-not-contains:

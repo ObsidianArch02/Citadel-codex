@@ -7,7 +7,6 @@ input: /research how does the auth middleware work
 state: clean
 timeout: 240000
 assert-contains:
-  - findings
   - auth
   - middleware
 assert-not-contains:

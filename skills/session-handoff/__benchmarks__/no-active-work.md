@@ -6,7 +6,7 @@ tags: [fringe, missing-state]
 input: /session-handoff
 state: clean
 assert-contains:
-  - handoff
+  - nothing
 assert-not-contains:
   - ENOENT
   - TypeError

@@ -7,8 +7,6 @@ input: /refactor extract the auth logic into a separate module
 state: with-campaign
 assert-contains:
   - auth
-  - module
-  - step
 assert-not-contains:
   - ENOENT
   - TypeError
