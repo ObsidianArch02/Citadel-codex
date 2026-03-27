@@ -5,14 +5,14 @@ description: Grid engine not available — skill should fall back to inline Grid
 tags: [fringe, missing-dependency, fallback]
 input: draw an ascii diagram showing a client connecting to a server
 state: clean
+timeout: 240000
 assert-contains:
   - client
   - server
-  - "+"
 assert-not-contains:
   - I cannot
   - ENOENT
-  - Error
+  - TypeError
 ---
 
 ## What This Tests

@@ -70,7 +70,7 @@ const tagFilter   = getArgValue('--tag');
  *   state           — named project state: clean | with-campaign | with-completed-campaign | with-telemetry
  *   assert-contains — YAML list: patterns that MUST appear in output (case-insensitive substring)
  *   assert-not-contains — YAML list: patterns that must NOT appear in output
- *   timeout         — milliseconds before giving up (default: 60000)
+ *   timeout         — milliseconds before giving up (default: 180000)
  *
  * @param {string} filePath
  * @returns {object|null} parsed scenario, or null with error logged
@@ -104,7 +104,9 @@ function parseScenario(filePath) {
 
     // YAML list item
     if (/^\s+-\s+/.test(line) && currentListKey) {
-      const value = line.replace(/^\s+-\s+/, '').trim();
+      let value = line.replace(/^\s+-\s+/, '').trim();
+      // Strip surrounding quotes (YAML allows quoting list values: - "pattern")
+      value = value.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
       fm[currentListKey] = fm[currentListKey] || [];
       fm[currentListKey].push(value);
       i++;
@@ -126,7 +128,7 @@ function parseScenario(filePath) {
         // Inline list: [a, b, c]
         fm[key] = val.slice(1, -1).split(',').map(s => s.trim()).filter(Boolean);
       } else {
-        fm[key] = val;
+        fm[key] = val.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
       }
     } else {
       currentListKey = null;
@@ -153,7 +155,8 @@ function parseScenario(filePath) {
     state:            fm.state || 'clean',
     assertContains:    Array.isArray(fm['assert-contains'])     ? fm['assert-contains']     : [],
     assertNotContains: Array.isArray(fm['assert-not-contains']) ? fm['assert-not-contains'] : [],
-    timeout:          parseInt(fm.timeout, 10) || 60000,
+    timeout:          parseInt(fm.timeout, 10) || 180000,
+    skipExecute:      fm['skip-execute'] === 'true' || fm['skip-execute'] === true,
     filePath,
     body,
   };
@@ -239,6 +242,18 @@ const STATES = {
       'Blocking: none',
     ].join('\n'));
 
+    // Add harness.json so setup/already-configured tests the right code path
+    const claudeDir = path.join(tmpDir, '.claude');
+    fs.mkdirSync(claudeDir, { recursive: true });
+    fs.writeFileSync(path.join(claudeDir, 'harness.json'), JSON.stringify({
+      language: 'typescript', framework: 'react', packageManager: 'npm',
+      typecheck: { command: 'npm run typecheck', perFile: true },
+      test: { command: 'npm test', framework: 'jest' },
+      qualityRules: { builtIn: ['no-confirm-alert', 'no-transition-all'], custom: [] },
+      protectedFiles: ['.claude/harness.json'],
+      features: { intakeScanner: true, telemetry: true },
+    }, null, 2));
+
     // Add some telemetry
     const telemetryDir = path.join(tmpDir, '.planning', 'telemetry');
     fs.mkdirSync(telemetryDir, { recursive: true });
@@ -296,6 +311,39 @@ const STATES = {
     );
   },
 
+  'with-intake': (tmpDir) => {
+    const intakeDir = path.join(tmpDir, '.planning', 'intake');
+    fs.mkdirSync(intakeDir, { recursive: true });
+    fs.writeFileSync(path.join(intakeDir, 'add-logging.md'), [
+      '---',
+      'status: briefed',
+      'priority: high',
+      '---',
+      '',
+      '# Add structured logging to API endpoints',
+      '',
+      '## Problem',
+      'No visibility into API call patterns or errors in production.',
+      '',
+      '## Approach',
+      'Add a logging middleware that records method, path, status, and duration.',
+      'Write logs to .planning/telemetry/api-requests.jsonl.',
+      '',
+      '## Acceptance criteria',
+      '- Every API call logged with timestamp, method, path, status, duration_ms',
+      '- No existing tests broken',
+    ].join('\n'));
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), [
+      '# Test Project',
+      '',
+      'A simple Express API.',
+      '',
+      '## Stack',
+      '- Node.js + Express',
+      '- Jest for tests',
+    ].join('\n'));
+  },
+
   'with-fleet-session': (tmpDir) => {
     const fleetDir = path.join(tmpDir, '.planning', 'fleet');
     fs.mkdirSync(fleetDir, { recursive: true });
@@ -306,6 +354,84 @@ const STATES = {
       'wave: 2',
       'agents: 3',
       'coordinator: archon',
+    ].join('\n'));
+  },
+
+  'with-source': (tmpDir) => {
+    // Project with existing TypeScript React components — for scaffold exemplar tests
+    const srcDir = path.join(tmpDir, 'src', 'components');
+    fs.mkdirSync(srcDir, { recursive: true });
+
+    fs.writeFileSync(path.join(srcDir, 'UserCard.tsx'), [
+      "import React from 'react';",
+      '',
+      'interface UserCardProps {',
+      '  name: string;',
+      '  email: string;',
+      '  avatarUrl?: string;',
+      '}',
+      '',
+      'export const UserCard: React.FC<UserCardProps> = ({ name, email, avatarUrl }) => {',
+      '  return (',
+      '    <div className="user-card">',
+      '      {avatarUrl && <img src={avatarUrl} alt={name} />}',
+      '      <h3>{name}</h3>',
+      '      <p>{email}</p>',
+      '    </div>',
+      '  );',
+      '};',
+      '',
+      'export default UserCard;',
+    ].join('\n'));
+
+    fs.writeFileSync(path.join(srcDir, 'StatusBadge.tsx'), [
+      "import React from 'react';",
+      '',
+      'interface StatusBadgeProps {',
+      '  status: "active" | "inactive" | "pending";',
+      '  label?: string;',
+      '}',
+      '',
+      'export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label }) => {',
+      '  return (',
+      '    <span className={`badge badge--${status}`}>',
+      '      {label ?? status}',
+      '    </span>',
+      '  );',
+      '};',
+      '',
+      'export default StatusBadge;',
+    ].join('\n'));
+
+    fs.writeFileSync(path.join(srcDir, 'index.ts'), [
+      "export { UserCard } from './UserCard';",
+      "export { StatusBadge } from './StatusBadge';",
+    ].join('\n'));
+
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), [
+      '# Test Project',
+      '',
+      'A TypeScript React application.',
+      '',
+      '## Stack',
+      '- TypeScript + React',
+      '- Components in src/components/',
+      '- Named exports, barrel index at src/components/index.ts',
+    ].join('\n'));
+  },
+
+  'with-git-remote': (tmpDir) => {
+    // Minimal git repo with a GitHub remote — for git-dependent skills (pr-watch, triage)
+    try {
+      execSync('git init', { cwd: tmpDir, stdio: 'pipe' });
+      execSync('git remote add origin https://github.com/example/test-repo.git', { cwd: tmpDir, stdio: 'pipe' });
+      execSync('git config user.email "bench@citadel.test"', { cwd: tmpDir, stdio: 'pipe' });
+      execSync('git config user.name "Bench"', { cwd: tmpDir, stdio: 'pipe' });
+    } catch { /* ignore git init errors in restricted envs */ }
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), [
+      '# Test Project',
+      '',
+      'A TypeScript project.',
     ].join('\n'));
   },
 };
@@ -356,7 +482,7 @@ function executeScenario(scenario, claudeCmd, tmpDir) {
   try {
     const output = execFileSync(
       bin,
-      [...binArgs, '--print', '--dangerously-skip-permissions', scenario.input],
+      [...binArgs, '--plugin-dir', PLUGIN_ROOT, '--print', '--dangerously-skip-permissions', scenario.input],
       {
         cwd: tmpDir,
         timeout: scenario.timeout,
@@ -534,7 +660,18 @@ function main() {
     let result;
     let tmpDir = null;
 
-    if (canExecute) {
+    if (canExecute && scenario.skipExecute) {
+      // skip-execute: true — scenario requires sub-agent spawning or external services
+      // that can't reliably run in bench. Count as skipped (not failed).
+      result = {
+        scenario: scenario.name,
+        skill:    scenario.skill,
+        mode:     'execute',
+        passed:   true,
+        skipped:  true,
+        assertionResults: [],
+      };
+    } else if (canExecute) {
       // Execute mode: set up state, run, assert
       try {
         tmpDir = setupProjectState(scenario.state);

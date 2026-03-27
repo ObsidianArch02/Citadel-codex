@@ -27,12 +27,13 @@ Claude Code to operate autonomously on any codebase. It provides:
 
 ## Testing
 
-Always run tests after modifying hooks or skills. Three levels:
+Always run tests after modifying hooks or skills. Four levels:
 
 | Command | What it checks | When to run |
 |---|---|---|
 | `node scripts/test-all.js` | Hooks + skill structure (fast, no LLM) | After any change |
 | `node hooks_src/smoke-test.js` | Hooks only | After hook changes |
+| `node scripts/verify-hooks.js` | Hook install + runtime (synthetic payloads, no LLM) | After hook changes |
 | `node scripts/skill-lint.js` | All SKILL.md structure | After skill changes |
 | `node scripts/skill-bench.js` | Scenario file validity | After adding benchmarks |
 | `node scripts/skill-bench.js --execute` | Live scenario execution | Before shipping |

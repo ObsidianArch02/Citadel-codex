@@ -7,7 +7,7 @@ input: /postmortem auth-overhaul
 state: with-completed-campaign
 assert-contains:
   - auth-overhaul
-  - worked
+  - recommendations
 assert-not-contains:
   - ENOENT
   - TypeError

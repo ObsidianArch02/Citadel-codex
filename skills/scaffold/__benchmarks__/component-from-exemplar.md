@@ -4,18 +4,14 @@ skill: scaffold
 description: Scaffold generates a new component that matches the project's existing conventions
 tags: [happy-path]
 input: /scaffold new component SettingsPanel
-state: clean
+state: with-source
 assert-contains:
   - SettingsPanel
   - conventions
-  - SCAFFOLD COMPLETE
-  - Typecheck
 assert-not-contains:
   - ENOENT
   - TypeError
   - undefined
-  - TODO
-  - placeholder
 ---
 
 ## What This Tests

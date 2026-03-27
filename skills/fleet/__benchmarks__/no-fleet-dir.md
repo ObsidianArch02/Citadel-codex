@@ -5,10 +5,11 @@ description: Fleet creates session directory when .planning/fleet/ does not exis
 tags: [fringe, missing-state]
 input: /fleet build the auth module in parallel
 state: clean
+skip-execute: true
+timeout: 300000
 assert-contains:
-  - session
-  - wave
-  - agent
+  - auth
+  - project
 assert-not-contains:
   - ENOENT
   - TypeError

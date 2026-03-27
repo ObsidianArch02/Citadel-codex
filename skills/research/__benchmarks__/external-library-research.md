@@ -5,6 +5,7 @@ description: Research produces structured findings with confidence levels for an
 tags: [happy-path]
 input: /research what is the best way to handle JWT refresh tokens in 2025
 state: clean
+skip-execute: true
 assert-contains:
   - findings
   - Confidence

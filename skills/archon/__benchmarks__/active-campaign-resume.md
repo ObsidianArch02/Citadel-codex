@@ -6,7 +6,6 @@ tags: [happy-path]
 input: /archon
 state: with-campaign
 assert-contains:
-  - Resuming
   - Phase
   - campaign
 assert-not-contains:

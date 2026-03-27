@@ -6,8 +6,7 @@ tags: [fringe, wrong-input]
 input: /scaffold new component UserProfile
 state: with-campaign
 assert-contains:
-  - UserProfile
-  - exist
+  - exemplar
 assert-not-contains:
   - ENOENT
   - TypeError

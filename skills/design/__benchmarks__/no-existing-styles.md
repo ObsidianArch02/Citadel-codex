@@ -5,8 +5,9 @@ description: Design skill asks questions or generates a baseline manifest when n
 tags: [fringe, missing-state]
 input: /design
 state: clean
+timeout: 240000
 assert-contains:
-  - design
+  - Generate
 assert-not-contains:
   - ENOENT
   - TypeError

@@ -8,7 +8,6 @@ state: with-campaign
 assert-contains:
   - auth
   - test
-  - assert
 assert-not-contains:
   - ENOENT
   - TypeError

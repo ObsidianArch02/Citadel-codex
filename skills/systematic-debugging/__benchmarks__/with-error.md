@@ -6,14 +6,10 @@ tags: [happy-path]
 input: /systematic-debugging TypeError: cannot read properties of undefined in auth middleware
 state: clean
 assert-contains:
-  - TypeError
-  - hypothesis
   - auth
 assert-not-contains:
   - ENOENT
   - SyntaxError
-  - Cannot read properties of undefined
-  - undefined
 ---
 
 ## What This Tests

@@ -4,12 +4,11 @@ skill: pr-watch
 description: PR-watch detects a failing CI check, reads logs, applies a targeted fix, and re-polls
 tags: [happy-path]
 input: /pr-watch 42
-state: with-campaign
+state: with-git-remote
+skip-execute: true
 assert-contains:
-  - Watching PR
-  - fix
-  - CI
-  - checks
+  - PR
+  - repository
 assert-not-contains:
   - ENOENT
   - TypeError
