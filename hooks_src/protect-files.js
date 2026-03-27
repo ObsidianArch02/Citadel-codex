@@ -145,7 +145,7 @@ function checkCampaignScope(relativePath, toolName, _filePath) {
     if (!campaignText) return; // No active campaign — skip
 
     // Extract "## Restricted Files" section
-    const restrictedMatch = campaignText.match(/^##\s+Restricted Files\s*\n([\s\S]*?)(?=^##|\z)/m);
+    const restrictedMatch = campaignText.match(/^##\s+Restricted Files\s*\n([\s\S]*?)(?=^##|(?![\s\S]))/m);
     if (restrictedMatch) {
       const restrictedLines = restrictedMatch[1]
         .split('\n')
@@ -164,7 +164,7 @@ function checkCampaignScope(relativePath, toolName, _filePath) {
     }
 
     // Extract "## Claimed Scope" section
-    const scopeMatch = campaignText.match(/^##\s+Claimed Scope\s*\n([\s\S]*?)(?=^##|\z)/m);
+    const scopeMatch = campaignText.match(/^##\s+Claimed Scope\s*\n([\s\S]*?)(?=^##|(?![\s\S]))/m);
     if (!scopeMatch) return; // No claimed scope declared — skip
 
     const scopeEntries = scopeMatch[1]
