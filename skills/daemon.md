@@ -283,6 +283,11 @@ by RemoteTrigger. It is not user-facing.**
    - Log: `daemon-stop` with reason `budget-exhausted`
    - Exit.
 5. **Campaign gate**: Read the campaign file.
+   - If the campaign file does not exist -- stop the daemon:
+     - Update daemon.json: `status: "stopped"`, `stopReason: "no-active-work"`
+     - Delete both triggers
+     - Log: `daemon-stop` with reason `no-active-work`
+     - Exit.
    - If `status: completed` or `status: failed` -- stop the daemon:
      - Update daemon.json: `status: "stopped"`, `stopReason: "campaign-{status}"`
      - Delete both triggers
@@ -324,7 +329,14 @@ Archon will work until:
 After `/do continue` returns (or the session is winding down):
 
 1. Read the campaign file again to get updated status and phase
-2. Update daemon.json:
+2. **No-work gate**: If the campaign status is `completed`, `failed`, `parked`, or
+   the campaign file no longer exists -- stop the daemon immediately:
+   - Update daemon.json: `status: "stopped"`, `stopReason: "no-active-work"`,
+     `stoppedAt: "{ISO timestamp}"`
+   - Delete both triggers (RemoteTrigger delete)
+   - Log: `daemon-stop` with reason `no-active-work`
+   - Do NOT schedule the next tick. Exit after recording the session.
+3. Update daemon.json:
    - `sessionCount`: increment by 1
    - `estimatedSpend`: add `costPerSession`
    - `lastTickStatus`: `"completed"`
@@ -504,7 +516,16 @@ the daemon automatically. No manual `/daemon start` needed.
 
 **Campaign completes mid-session:**
 Archon marks the campaign as completed. The tick's Step 4 reads the updated status.
-Step 5 sees the campaign is done and stops the daemon. Clean exit.
+The no-work gate catches it and stops the daemon. Clean exit.
+
+**Campaign completed but daemon.json not updated (the idle loop bug):**
+If the campaign completed but daemon.json still says `status: "running"`, the daemon
+keeps spawning sessions that find no work. Three layers now prevent this:
+1. Campaign gate (Step 1.5): checks campaign file status before executing
+2. No-work gate (Step 4.2): checks after `/do continue` returns
+3. `/do` Tier 1: if "continue" finds no active campaign and daemon.json is running,
+   stops the daemon directly
+All three write `stopReason: "no-active-work"` to daemon.json.
 
 ---
 

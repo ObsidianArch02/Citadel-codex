@@ -233,9 +233,25 @@ function checkDaemonState() {
     const slug = daemon.campaignSlug;
     if (!slug) return;
     const campaignPath = path.join(PROJECT_ROOT, '.planning', 'campaigns', `${slug}.md`);
-    if (!fs.existsSync(campaignPath)) return;
-    const campaignContent = fs.readFileSync(campaignPath, 'utf8');
-    if (!/status:\s*active/i.test(campaignContent)) return;
+    const campaignExists = fs.existsSync(campaignPath);
+    const campaignActive = campaignExists
+      && /status:\s*active/i.test(fs.readFileSync(campaignPath, 'utf8'));
+
+    if (!campaignActive) {
+      // Campaign is done but daemon.json still says running -- stop the daemon.
+      // This prevents idle loops where sessions spawn, find no work, and exit.
+      try {
+        daemon.status = 'stopped';
+        daemon.stoppedAt = new Date().toISOString();
+        daemon.stopReason = 'no-active-work';
+        fs.writeFileSync(daemonPath, JSON.stringify(daemon, null, 2));
+        process.stdout.write(
+          `[daemon] Stopped -- campaign "${slug}" is no longer active. ` +
+          `Reason: ${campaignExists ? 'campaign completed/parked' : 'campaign file not found'}.\n`
+        );
+      } catch { /* non-fatal */ }
+      return;
+    }
 
     // All gates pass -- determine session type
     const remaining = typeof daemon.budget === 'number'

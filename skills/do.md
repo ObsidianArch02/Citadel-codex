@@ -92,6 +92,14 @@ Check for active campaigns or fleet sessions that match the input scope:
 4. If input scope matches a non-improve active campaign → `/archon continue`
 5. If fleet session needs continuation → `/fleet continue`
 6. If input mentions a campaign by name → resume it (check type field for routing)
+7. **If input is "continue" but NO active campaign or fleet session found:**
+   - Output: "No active campaign or fleet session found. Nothing to continue."
+   - **If `.planning/daemon.json` exists with `status: "running"`:** the daemon spawned
+     this session but there's no work to do. Update daemon.json:
+     `status: "stopped"`, `stopReason: "no-active-work"`,
+     `stoppedAt: "{ISO timestamp}"`. Delete both triggers if IDs are present.
+     Output: "[daemon] Stopped -- no active campaign found. The work is done."
+   - Exit. Do NOT fall through to Tier 2 or 3.
 
 If matched → resume the active work. Done.
 
