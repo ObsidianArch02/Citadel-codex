@@ -2,6 +2,7 @@
 .claude/circuit-breaker-state.json
 .claude/compact-state.json
 .claude/harness.json
+.claude/consent-*.json
 .claude/settings.json
 .claude/settings.local.json
 
@@ -15,8 +16,9 @@ apps/
 .planning/coordination/instances/*.json
 .planning/coordination/claims/*.json
 
-# Telemetry logs and runtime flags
+# Telemetry logs and runtime state
 .planning/telemetry/*.jsonl
+.planning/telemetry/*.json
 .planning/telemetry/*.log
 .planning/telemetry/.typecheck-notified
 

@@ -45,14 +45,29 @@ exist, treat it as empty. Never crash on missing state.
   - Phase progress (search for `Phase N of M` or `## Phase` headings)
   - Most recent line starting with `- [` from the Decision Log
 
-**Cost Data:**
+**Cost Data (two sources, prefer real):**
+
+Source 1 -- Real token data (primary):
+- Run `node scripts/session-tokens.js --today` and `node scripts/session-tokens.js --all`
+- If the script exists and produces output, use its numbers (they read Claude Code's
+  native session JSONL files for exact token counts and compute cost from API pricing).
+
+Source 2 -- Session costs JSONL (fallback, also provides campaign attribution):
 - Read `.planning/telemetry/session-costs.jsonl` (if it exists)
-- For each line, parse as JSON: `{ campaign_slug, agent_count, duration_minutes, estimated_cost, override_cost }`
+- For each line, parse as JSON
+- Cost priority: `real_cost` > `override_cost` > `estimated_cost`
 - Group by `campaign_slug`. For each group:
   - Count sessions
-  - Sum cost (use `override_cost` when non-null, else `estimated_cost`)
+  - Sum best available cost
   - Sum agents spawned and duration minutes
-- Also compute the grand total across all campaigns
+- Compute grand total across all campaigns
+
+Live session:
+- Read `.planning/telemetry/cost-tracker-state.json` for current session burn rate
+
+Data source indicator:
+- If `real_cost` fields are present in session-costs.jsonl entries, note "(real)"
+- If only `estimated_cost`, note "(est)" so users know accuracy level
 
 **Fleet Sessions:**
 - Glob `.planning/fleet/session-*.md`
@@ -73,11 +88,20 @@ exist, treat it as empty. Never crash on missing state.
 - Count lines in `.planning/telemetry/merge-check-queue.jsonl` (or 0 if missing)
 - Count files in `.planning/intake/` (or 0 if missing)
 
+**Hook Value Data (for HOOKS VALUE section):**
+- Read `.planning/telemetry/hook-errors.jsonl` (if it exists, last 200 lines)
+  - Count entries where `hook` = "protect-files" (blocked file access)
+  - Count entries where `hook` = "external-action-gate" (gated external actions)
+  - Count entries where `hook` = "quality-gate" (quality violations)
+- Read `.planning/telemetry/hook-timing.jsonl` (if it exists, last 200 lines)
+  - Count entries where `hook` = "circuit-breaker" and `metric` = "trips"
+  - Count total entries from today (entries containing today's ISO date prefix)
+- Read `.planning/telemetry/audit.jsonl` (if it exists, last 200 lines)
+  - Count entries mentioning "circuit-breaker" or "circuit_breaker"
+
 **Health:**
-- Count `"circuit_breaker"` or `"CIRCUIT_BREAKER"` occurrences in
-  `.planning/telemetry/audit.jsonl` for the current session (last 200 lines)
+- Count circuit breaker entries from audit.jsonl (from hook value data above)
 - Count total lines in `.planning/telemetry/audit.jsonl` written today
-  (lines containing today's date in ISO format)
 - Count entries in `hooks` array of `.claude/hooks-template.json` (or
   `.claude/hooks.json` if template not present); use 0 if neither exists
 
@@ -107,10 +131,22 @@ CAMPAIGNS
   (none active)
 
 COSTS
-  {campaign_slug}: ${total_cost} across {sessions} sessions ({agents_spawned} agents, {total_minutes} min)
-  {campaign_slug}: ${total_cost} across {sessions} sessions ({agents_spawned} agents, {total_minutes} min)
-  Total: ${grand_total} across {total_sessions} sessions
+  This session: ${cost} | {duration} min | ${rate}/min | {messages} msgs | {agents} agents
+  Today:        ${today_total} across {today_sessions} sessions
+  All time:     ${all_time_total} across {all_time_sessions} sessions ({data_source})
+
+  By campaign:
+    {slug}: ${total_cost} across {sessions} sessions ({agents} agents, {minutes} min)
+    _unattached: ${total_cost} across {sessions} sessions
   (no cost data recorded yet)
+
+HOOKS VALUE
+  Circuit breaker: {N} trips (prevented token spirals)
+  Quality gate:    {N} violations caught pre-commit
+  Protect-files:   {N} blocks (path traversal, secrets)
+  External gate:   {N} actions gated
+  Total hook fires today: {N}
+  (raw facts only -- no inflated savings claims)
 
 FLEET SESSIONS
   {slug}: Wave {N} — {agent count} agents — {status}

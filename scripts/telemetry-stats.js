@@ -12,6 +12,10 @@
 const fs = require('fs');
 const path = require('path');
 
+// Real token reader for enriched cost data
+let sessionTokens = null;
+try { sessionTokens = require('./session-tokens'); } catch { /* not available */ }
+
 const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const PLANNING_DIR = path.join(ROOT, '.planning');
 const TELEMETRY_DIR = path.join(PLANNING_DIR, 'telemetry');
@@ -158,14 +162,24 @@ function readSessionCosts() {
 }
 
 /**
+ * Get the best cost for a session-cost event.
+ * Priority: override_cost > real_cost > estimated_cost
+ */
+function bestCost(e) {
+  if (typeof e.override_cost === 'number') return e.override_cost;
+  if (typeof e.real_cost === 'number') return e.real_cost;
+  return e.estimated_cost || 0;
+}
+
+/**
  * Aggregate costs by campaign slug.
- * Returns a map of campaign slug -> { sessions, total_cost, agents_spawned, total_minutes }.
+ * Returns a map of campaign slug -> { sessions, total_cost, agents_spawned, total_minutes, tokens }.
  * Sessions with no campaign_slug are grouped under "_unattached".
  *
- * When a session has override_cost (user-supplied real cost), that takes precedence
- * over the estimated_cost.
+ * Cost priority: override_cost > real_cost > estimated_cost
  *
- * @returns {Object<string, {sessions:number, total_cost:number, agents_spawned:number, total_minutes:number}>}
+ * @returns {Object<string, {sessions:number, total_cost:number, agents_spawned:number,
+ *   total_minutes:number, input_tokens:number, output_tokens:number, has_real_data:boolean}>}
  */
 function readCostByCampaign() {
   const events = readSessionCosts();
@@ -174,38 +188,54 @@ function readCostByCampaign() {
   for (const e of events) {
     const slug = e.campaign_slug || '_unattached';
     if (!result[slug]) {
-      result[slug] = { sessions: 0, total_cost: 0, agents_spawned: 0, total_minutes: 0 };
+      result[slug] = {
+        sessions: 0, total_cost: 0, agents_spawned: 0, total_minutes: 0,
+        input_tokens: 0, output_tokens: 0, has_real_data: false,
+      };
     }
     const r = result[slug];
     r.sessions++;
-    r.total_cost += (typeof e.override_cost === 'number' ? e.override_cost : (e.estimated_cost || 0));
+    r.total_cost += bestCost(e);
     r.agents_spawned += (e.agent_count || 0);
     r.total_minutes += (e.duration_minutes || 0);
+    if (typeof e.input_tokens === 'number') {
+      r.input_tokens += e.input_tokens;
+      r.output_tokens += (e.output_tokens || 0);
+      r.has_real_data = true;
+    }
   }
 
   return result;
 }
 
 /**
- * Get total estimated spend across all campaigns.
- * @returns {{ total: number, by_campaign: Object, session_count: number }}
+ * Get total spend across all campaigns.
+ * Uses real cost when available, falls back to estimated.
+ * @returns {{ total: number, by_campaign: Object, session_count: number, has_real_data: boolean }}
  */
 function readTotalCost() {
   const byCampaign = readCostByCampaign();
   let total = 0;
   let sessionCount = 0;
+  let hasRealData = false;
 
   for (const slug of Object.keys(byCampaign)) {
     total += byCampaign[slug].total_cost;
     sessionCount += byCampaign[slug].sessions;
+    if (byCampaign[slug].has_real_data) hasRealData = true;
   }
 
-  return { total: Math.round(total * 100) / 100, by_campaign: byCampaign, session_count: sessionCount };
+  return {
+    total: Math.round(total * 100) / 100,
+    by_campaign: byCampaign,
+    session_count: sessionCount,
+    has_real_data: hasRealData,
+  };
 }
 
 /**
  * Compute estimated cost for a single session based on agent activity.
- * Used by session-end hook to log cost events.
+ * Used as fallback when real token data is not available.
  *
  * @param {number} agentCount - Number of sub-agents spawned this session
  * @param {number} durationMinutes - Session duration in minutes
@@ -214,6 +244,46 @@ function readTotalCost() {
 function estimateSessionCost(agentCount, durationMinutes) {
   const cost = BASE_SESSION_COST + (agentCount * COST_PER_SUBAGENT) + (durationMinutes * COST_PER_MINUTE);
   return Math.round(cost * 100) / 100;
+}
+
+/**
+ * Read real token/cost data directly from Claude Code session JSONL files.
+ * This bypasses the session-costs.jsonl intermediary and reads the source of truth.
+ *
+ * @param {object} [opts] - Options
+ * @param {string} [opts.since] - ISO date string, only include sessions after this
+ * @returns {{ sessions: object[], totals: object } | null} null if session-tokens.js not available
+ */
+function readRealCostSummary(opts = {}) {
+  if (!sessionTokens) return null;
+  try {
+    return sessionTokens.readAllSessions(opts);
+  } catch { return null; }
+}
+
+/**
+ * Get a complete cost picture: Citadel telemetry + real Claude Code data.
+ * Merges both sources, preferring real data. This is the primary read function
+ * for dashboards and reports.
+ *
+ * @returns {{ total_cost: number, session_count: number, by_campaign: Object,
+ *   real_total: number|null, real_sessions: number, data_source: string }}
+ */
+function readCostDashboard() {
+  const citadel = readTotalCost();
+  const real = readRealCostSummary();
+
+  return {
+    total_cost: real ? real.totals.total_cost : citadel.total,
+    session_count: real ? real.totals.session_count : citadel.session_count,
+    by_campaign: citadel.by_campaign,
+    real_total: real ? real.totals.total_cost : null,
+    real_sessions: real ? real.totals.session_count : 0,
+    estimated_total: citadel.total,
+    data_source: real ? 'real+estimated' : 'estimated-only',
+    total_messages: real ? real.totals.messages : null,
+    total_subagents: real ? real.totals.subagent_count : null,
+  };
 }
 
 // ── Token economics ───────────────────────────────────────────────────────────
@@ -297,6 +367,77 @@ function readTokenEconomics() {
   };
 }
 
+// ── Citadel value metrics ────────────────────────────────────────────────────
+
+/**
+ * Compute a comprehensive "Citadel value" report.
+ * Combines token economics (what Citadel caught/saved) with real cost data
+ * to tell the full story: what you spent, what you got, what was saved.
+ *
+ * @returns {{ spend: object, savings: object, hooks: object, value_ratio: number|null }}
+ */
+function readCitadelValueMetrics() {
+  const cost = readCostDashboard();
+  const economics = readTokenEconomics();
+  const hookTiming = readJsonl(path.join(TELEMETRY_DIR, 'hook-timing.jsonl'));
+  const hookErrors = readJsonl(path.join(TELEMETRY_DIR, 'hook-errors.jsonl'));
+
+  // Count hook fires by hook name
+  const hookCounts = {};
+  for (const e of hookTiming) {
+    const hook = e.hook || 'unknown';
+    hookCounts[hook] = (hookCounts[hook] || 0) + 1;
+  }
+
+  // Count blocks by hook
+  const blockCounts = {};
+  for (const e of hookErrors) {
+    const hook = e.hook || 'unknown';
+    blockCounts[hook] = (blockCounts[hook] || 0) + 1;
+  }
+
+  // Estimate dollar savings from token savings (use dominant model pricing)
+  const pricing = sessionTokens ? sessionTokens.PRICING['claude-opus-4-6'] : { output: 75.00 };
+  const tokensSaved = economics.total_estimated_savings;
+  const dollarsSaved = tokensSaved > 0
+    ? Math.round((tokensSaved / 1_000_000) * pricing.output * 100) / 100
+    : 0;
+
+  // Security catches: blocks from protect-files, external-action-gate
+  const securityBlocks = (blockCounts['protect-files'] || 0) +
+    (blockCounts['external-action-gate'] || 0);
+
+  // Quality catches: blocks from quality-gate
+  const qualityBlocks = blockCounts['quality-gate'] || 0;
+
+  return {
+    spend: {
+      total_cost: cost.total_cost,
+      session_count: cost.session_count,
+      data_source: cost.data_source,
+      by_campaign: cost.by_campaign,
+    },
+    savings: {
+      tokens_saved: tokensSaved,
+      dollars_saved: dollarsSaved,
+      routing_saves: economics.routing_savings_estimate,
+      circuit_breaker_saves: economics.circuit_breaker_saves,
+      quality_gate_saves: economics.quality_gate_saves,
+    },
+    hooks: {
+      total_fires: hookTiming.length,
+      by_hook: hookCounts,
+      total_blocks: hookErrors.length,
+      blocks_by_hook: blockCounts,
+      security_blocks: securityBlocks,
+      quality_blocks: qualityBlocks,
+    },
+    value_ratio: cost.total_cost > 0
+      ? Math.round((dollarsSaved / cost.total_cost) * 100) / 100
+      : null,
+  };
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -310,6 +451,10 @@ module.exports = {
   readCostByCampaign,
   readTotalCost,
   estimateSessionCost,
+  readRealCostSummary,
+  readCostDashboard,
+  readCitadelValueMetrics,
+  bestCost,
   TOKENS_PER_TIER_RESOLUTION,
   TOKENS_PER_CIRCUIT_TRIP,
   TOKENS_PER_QUALITY_VIOLATION,

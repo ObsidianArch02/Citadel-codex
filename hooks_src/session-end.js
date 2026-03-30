@@ -25,6 +25,13 @@ const fs = require('fs');
 const path = require('path');
 const health = require('./harness-health-util');
 
+// Real token reader -- gracefully falls back if not available
+let sessionTokens = null;
+try {
+  const pluginRoot = path.resolve(__dirname, '..');
+  sessionTokens = require(path.join(pluginRoot, 'scripts', 'session-tokens'));
+} catch { /* session-tokens.js not available -- use estimation fallback */ }
+
 const PROJECT_ROOT = health.PROJECT_ROOT;
 
 function main() {
@@ -68,9 +75,14 @@ function main() {
 /**
  * Log session cost data to .planning/telemetry/session-costs.jsonl.
  *
- * Reads agent-runs.jsonl to count agents spawned this session,
- * finds the active campaign slug, and computes an estimated cost.
- * The daemon and dashboard read this file for real cost data.
+ * Two-layer approach:
+ *   1. Real tokens: Read Claude Code's session JSONL for exact token counts and
+ *      compute real cost from API pricing. This is the source of truth.
+ *   2. Estimation fallback: If session JSONL isn't available (permissions, path
+ *      issues), fall back to the heuristic model (base + agents + duration).
+ *
+ * The daemon and dashboard read this file. Real cost fields are present only when
+ * real data was available -- consumers check for their presence.
  */
 function logSessionCost(event) {
   try {
@@ -80,9 +92,11 @@ function logSessionCost(event) {
     }
 
     const now = new Date();
+    // Resolve session ID: prefer event input, fall back to latest session file
+    const sessionId = event.session_id
+      || (sessionTokens ? sessionTokens.getCurrentSessionId() : null);
 
     // Count agent-start events from this session by scanning agent-runs.jsonl.
-    // We look at events from the last 4 hours (generous window for a single session).
     const agentRunsPath = path.join(telemetryDir, 'agent-runs.jsonl');
     let agentCount = 0;
     let sessionStartTime = null;
@@ -91,7 +105,6 @@ function logSessionCost(event) {
       const lines = fs.readFileSync(agentRunsPath, 'utf8').split('\n').filter(Boolean);
       const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
 
-      // Find the most recent session-start or campaign-start as session boundary
       for (let i = lines.length - 1; i >= 0; i--) {
         try {
           const entry = JSON.parse(lines[i]);
@@ -104,10 +117,6 @@ function logSessionCost(event) {
       }
     }
 
-    // Calculate duration in minutes
-    const startTime = sessionStartTime ? new Date(sessionStartTime) : new Date(now.getTime() - 10 * 60 * 1000);
-    const durationMinutes = Math.max(1, Math.round((now - startTime) / 60000));
-
     // Find active campaign slug
     let campaignSlug = null;
     const campaignsDir = path.join(PROJECT_ROOT, '.planning', 'campaigns');
@@ -116,7 +125,7 @@ function logSessionCost(event) {
       for (const f of files) {
         try {
           const content = fs.readFileSync(path.join(campaignsDir, f), 'utf8');
-          if (/^status:\s*active/mi.test(content) || /^Status:\s*active/mi.test(content)) {
+          if (/^status:\s*active/mi.test(content)) {
             campaignSlug = f.replace(/\.md$/, '');
             break;
           }
@@ -124,24 +133,94 @@ function logSessionCost(event) {
       }
     }
 
-    // Compute estimated cost using the same model as telemetry-stats.js
+    // Layer 1: Try to read real token data from Claude Code session JSONL
+    let realTokens = null;
+    let realCost = null;
+    let durationMinutes = 0;
+
+    if (sessionTokens && sessionId) {
+      try {
+        const result = sessionTokens.readSessionTokens(sessionId);
+        if (result && result.combined.messages > 0) {
+          realTokens = result.combined;
+          realCost = sessionTokens.computeCost(result.combined);
+
+          // Compute duration from real timestamps
+          if (realTokens.first_timestamp && realTokens.last_timestamp) {
+            durationMinutes = Math.max(1, Math.round(
+              (new Date(realTokens.last_timestamp) - new Date(realTokens.first_timestamp)) / 60000
+            ));
+          }
+        }
+      } catch { /* real data unavailable -- fall back */ }
+    }
+
+    // Layer 2: Estimation fallback
+    if (!durationMinutes) {
+      const startTime = sessionStartTime
+        ? new Date(sessionStartTime)
+        : new Date(now.getTime() - 10 * 60 * 1000);
+      durationMinutes = Math.max(1, Math.round((now - startTime) / 60000));
+    }
+
     const BASE_SESSION_COST = 1.00;
     const COST_PER_SUBAGENT = 0.50;
     const COST_PER_MINUTE = 0.10;
-    const estimatedCost = Math.round((BASE_SESSION_COST + (agentCount * COST_PER_SUBAGENT) + (durationMinutes * COST_PER_MINUTE)) * 100) / 100;
+    const estimatedCost = Math.round(
+      (BASE_SESSION_COST + (agentCount * COST_PER_SUBAGENT) + (durationMinutes * COST_PER_MINUTE)) * 100
+    ) / 100;
 
-    const costEntry = JSON.stringify({
-      schema: 1,
+    // Build the cost entry -- real fields present only when real data available
+    const costEntry = {
+      schema: 2,
       timestamp: now.toISOString(),
       campaign_slug: campaignSlug,
-      session_id: event.session_id || null,
+      session_id: sessionId,
       agent_count: agentCount,
       duration_minutes: durationMinutes,
       estimated_cost: estimatedCost,
       override_cost: null,
-    });
+    };
 
-    fs.appendFileSync(path.join(telemetryDir, 'session-costs.jsonl'), costEntry + '\n', 'utf8');
+    // Enrich with real token data when available
+    if (realTokens) {
+      costEntry.real_cost = realCost;
+      costEntry.input_tokens = realTokens.input_tokens;
+      costEntry.output_tokens = realTokens.output_tokens;
+      costEntry.cache_creation_input_tokens = realTokens.cache_creation_input_tokens;
+      costEntry.cache_read_input_tokens = realTokens.cache_read_input_tokens;
+      costEntry.messages = realTokens.messages;
+      costEntry.subagent_count = realTokens.messages > 0 ? (agentCount || 0) : 0;
+      costEntry.models = realTokens.models;
+    }
+
+    fs.appendFileSync(
+      path.join(telemetryDir, 'session-costs.jsonl'),
+      JSON.stringify(costEntry) + '\n',
+      'utf8'
+    );
+
+    // Output one-line session cost summary to terminal.
+    // This fires AFTER the session -- stdout goes to the user's terminal, not Claude.
+    // Configurable via cost.sessionEndSummary in harness.json (default: true).
+    try {
+      const config = health.readConfig();
+      const costConfig = config?.cost || config?.policy?.costTracker || {};
+      const showSummary = costConfig.sessionEndSummary !== false;
+
+      if (showSummary) {
+        const cost = realCost !== null ? realCost : estimatedCost;
+        const source = realCost !== null ? '' : ' (est)';
+        const rate = durationMinutes > 0 ? (cost / durationMinutes).toFixed(2) : '?';
+        const campaign = campaignSlug ? ` | campaign: ${campaignSlug}` : '';
+        const agents = agentCount > 0 ? ` | ${agentCount} agents` : '';
+        const msgs = realTokens ? ` | ${realTokens.messages} msgs` : '';
+
+        process.stdout.write(
+          `[session] $${cost.toFixed(2)}${source} | ${durationMinutes} min | $${rate}/min${msgs}${agents}${campaign}\n`
+        );
+      }
+    } catch { /* summary is non-critical */ }
   } catch { /* non-critical -- never block session end */ }
 }
 

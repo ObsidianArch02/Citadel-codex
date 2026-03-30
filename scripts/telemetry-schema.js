@@ -134,6 +134,11 @@ function validateHookTimingEvent(entry) {
 /**
  * Validate a session-cost event entry.
  * Written by session-end hook to track per-session cost data.
+ *
+ * Schema v2 adds real token fields (present only when real data is available):
+ *   real_cost, input_tokens, output_tokens, cache_creation_input_tokens,
+ *   cache_read_input_tokens, messages, subagent_count, models
+ *
  * @param {object} entry
  * @returns {{ valid: boolean, errors: string[] }}
  */
@@ -160,7 +165,7 @@ function validateSessionCostEvent(entry) {
     errors.push('estimated_cost must be a non-negative number');
   }
 
-  // Optional fields
+  // Optional core fields
   if (entry.campaign_slug !== null && entry.campaign_slug !== undefined && typeof entry.campaign_slug !== 'string') {
     errors.push('campaign_slug must be a string or null');
   }
@@ -171,6 +176,19 @@ function validateSessionCostEvent(entry) {
 
   if (entry.override_cost !== null && entry.override_cost !== undefined && typeof entry.override_cost !== 'number') {
     errors.push('override_cost must be a number or null');
+  }
+
+  // Schema v2 real token fields (all optional -- only present when real data available)
+  const optionalNumbers = ['real_cost', 'input_tokens', 'output_tokens',
+    'cache_creation_input_tokens', 'cache_read_input_tokens', 'messages', 'subagent_count'];
+  for (const field of optionalNumbers) {
+    if (entry[field] !== null && entry[field] !== undefined && typeof entry[field] !== 'number') {
+      errors.push(`${field} must be a number or absent`);
+    }
+  }
+
+  if (entry.models !== null && entry.models !== undefined && typeof entry.models !== 'object') {
+    errors.push('models must be an object or absent');
   }
 
   return { valid: errors.length === 0, errors };
