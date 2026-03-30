@@ -29,11 +29,12 @@ const HOOK_EVENT_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-hook-events.js')
 const RUNTIME_REGISTRY_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-runtime-registry.js');
 const TELEMETRY_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-telemetry-core.js');
 const COORDINATION_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-coordination-core.js');
+const HOOK_INSTALLER_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-hook-installers.js');
 
 const STRICT = process.argv.includes('--strict');
 
 console.log('\nCitadel Full Test Suite\n' + '='.repeat(40));
-console.log('Running: hook smoke test + security tests + runtime contract test + runtime registry test + hook event test + skill lint + demo routing check + telemetry core check + coordination core check\n');
+console.log('Running: hook smoke test + security tests + runtime contract test + runtime registry test + hook event test + skill lint + demo routing check + telemetry core check + coordination core check + hook installer check\n');
 
 function run(label, scriptPath, extraArgs = []) {
   console.log(`\n> ${label}`);
@@ -61,6 +62,7 @@ const skillsPassed = run('Skill Lint', SKILL_LINT, lintArgs);
 const demoPassed = run('Demo Routing Check', DEMO_TEST);
 const telemetryPassed = run('Telemetry Core Check', TELEMETRY_TEST);
 const coordinationPassed = run('Coordination Core Check', COORDINATION_TEST);
+const hookInstallerPassed = run('Hook Installer Check', HOOK_INSTALLER_TEST);
 
 console.log('\n' + '='.repeat(40));
 console.log('SUMMARY');
@@ -73,9 +75,10 @@ console.log(`  Skill lint:         ${skillsPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Demo routing check: ${demoPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Telemetry core:     ${telemetryPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Coordination core:  ${coordinationPassed ? 'PASS' : 'FAIL'}`);
+console.log(`  Hook installers:    ${hookInstallerPassed ? 'PASS' : 'FAIL'}`);
 console.log('');
 
-if (hooksPassed && securityPassed && contractsPassed && runtimeRegistryPassed && hookEventsPassed && skillsPassed && demoPassed && telemetryPassed && coordinationPassed) {
+if (hooksPassed && securityPassed && contractsPassed && runtimeRegistryPassed && hookEventsPassed && skillsPassed && demoPassed && telemetryPassed && coordinationPassed && hookInstallerPassed) {
   console.log('All tests pass.\n');
   console.log('Next steps:');
   console.log('  node scripts/skill-bench.js --list      see benchmark scenarios');
@@ -93,7 +96,8 @@ const skillFail = !skillsPassed ? 32 : 0;
 const demoFail = !demoPassed ? 64 : 0;
 const telemetryFail = !telemetryPassed ? 128 : 0;
 const coordinationFail = !coordinationPassed ? 256 : 0;
-const code = hookFail | securityFail | contractFail | runtimeRegistryFail | hookEventFail | skillFail | demoFail | telemetryFail | coordinationFail;
+const hookInstallerFail = !hookInstallerPassed ? 512 : 0;
+const code = hookFail | securityFail | contractFail | runtimeRegistryFail | hookEventFail | skillFail | demoFail | telemetryFail | coordinationFail | hookInstallerFail;
 
 if (!hooksPassed) console.log('Hook smoke test failed. Fix hook issues before proceeding.');
 if (!securityPassed) console.log('Security tests failed. DO NOT SHIP - critical vulnerabilities present.');
@@ -104,5 +108,6 @@ if (!skillsPassed) console.log('Skill lint failed. Fix FAIL-level issues before 
 if (!demoPassed) console.log('Demo routing check failed. Fix routing bugs in docs/index.html before shipping.');
 if (!telemetryPassed) console.log('Telemetry core check failed. Fix telemetry regressions before shipping.');
 if (!coordinationPassed) console.log('Coordination core check failed. Fix coordination regressions before shipping.');
+if (!hookInstallerPassed) console.log('Hook installer check failed. Fix runtime installer regressions before shipping.');
 console.log('');
 process.exit(code);
