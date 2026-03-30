@@ -11,6 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { readJsonlDetailed } = require('../core/telemetry/io');
 
 // Real token reader for enriched cost data
 let sessionTokens = null;
@@ -34,12 +35,7 @@ const TOKENS_PER_QUALITY_VIOLATION = 8000; // avg fix session avoided per violat
 // ── Generic helpers ───────────────────────────────────────────────────────────
 
 function readJsonl(file) {
-  if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map(line => { try { return JSON.parse(line); } catch { return null; } })
-    .filter(Boolean);
+  return readJsonlDetailed(file).entries;
 }
 
 function readJson(file) {
