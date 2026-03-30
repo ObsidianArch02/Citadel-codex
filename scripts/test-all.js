@@ -26,11 +26,12 @@ const DEMO_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-demo.js');
 const SECURITY_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-security.js');
 const RUNTIME_CONTRACT_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-runtime-contracts.js');
 const HOOK_EVENT_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-hook-events.js');
+const RUNTIME_REGISTRY_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-runtime-registry.js');
 
 const STRICT = process.argv.includes('--strict');
 
 console.log('\nCitadel Full Test Suite\n' + '='.repeat(40));
-console.log('Running: hook smoke test + security tests + runtime contract test + hook event test + skill lint + demo routing check\n');
+console.log('Running: hook smoke test + security tests + runtime contract test + runtime registry test + hook event test + skill lint + demo routing check\n');
 
 function run(label, scriptPath, extraArgs = []) {
   console.log(`\n> ${label}`);
@@ -51,6 +52,7 @@ function run(label, scriptPath, extraArgs = []) {
 const hooksPassed = run('Hook Smoke Test', SMOKE_TEST);
 const securityPassed = run('Security Tests', SECURITY_TEST);
 const contractsPassed = run('Runtime Contract Tests', RUNTIME_CONTRACT_TEST);
+const runtimeRegistryPassed = run('Runtime Registry Tests', RUNTIME_REGISTRY_TEST);
 const hookEventsPassed = run('Hook Event Tests', HOOK_EVENT_TEST);
 const lintArgs = STRICT ? ['--warn-as-fail'] : [];
 const skillsPassed = run('Skill Lint', SKILL_LINT, lintArgs);
@@ -61,12 +63,13 @@ console.log('SUMMARY');
 console.log(`  Hook smoke test:    ${hooksPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Security tests:     ${securityPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Runtime contracts:  ${contractsPassed ? 'PASS' : 'FAIL'}`);
+console.log(`  Runtime registry:   ${runtimeRegistryPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Hook events:        ${hookEventsPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Skill lint:         ${skillsPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Demo routing check: ${demoPassed ? 'PASS' : 'FAIL'}`);
 console.log('');
 
-if (hooksPassed && securityPassed && contractsPassed && hookEventsPassed && skillsPassed && demoPassed) {
+if (hooksPassed && securityPassed && contractsPassed && runtimeRegistryPassed && hookEventsPassed && skillsPassed && demoPassed) {
   console.log('All tests pass.\n');
   console.log('Next steps:');
   console.log('  node scripts/skill-bench.js --list      see benchmark scenarios');
@@ -78,14 +81,16 @@ if (hooksPassed && securityPassed && contractsPassed && hookEventsPassed && skil
 const hookFail = !hooksPassed ? 1 : 0;
 const securityFail = !securityPassed ? 2 : 0;
 const contractFail = !contractsPassed ? 4 : 0;
-const hookEventFail = !hookEventsPassed ? 8 : 0;
-const skillFail = !skillsPassed ? 16 : 0;
-const demoFail = !demoPassed ? 32 : 0;
-const code = hookFail | securityFail | contractFail | hookEventFail | skillFail | demoFail;
+const runtimeRegistryFail = !runtimeRegistryPassed ? 8 : 0;
+const hookEventFail = !hookEventsPassed ? 16 : 0;
+const skillFail = !skillsPassed ? 32 : 0;
+const demoFail = !demoPassed ? 64 : 0;
+const code = hookFail | securityFail | contractFail | runtimeRegistryFail | hookEventFail | skillFail | demoFail;
 
 if (!hooksPassed) console.log('Hook smoke test failed. Fix hook issues before proceeding.');
 if (!securityPassed) console.log('Security tests failed. DO NOT SHIP - critical vulnerabilities present.');
 if (!contractsPassed) console.log('Runtime contract tests failed. Fix the contract skeleton before proceeding.');
+if (!runtimeRegistryPassed) console.log('Runtime registry tests failed. Fix runtime metadata and detection before proceeding.');
 if (!hookEventsPassed) console.log('Hook event tests failed. Fix event normalization before proceeding.');
 if (!skillsPassed) console.log('Skill lint failed. Fix FAIL-level issues before shipping.');
 if (!demoPassed) console.log('Demo routing check failed. Fix routing bugs in docs/index.html before shipping.');
