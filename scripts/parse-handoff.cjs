@@ -14,21 +14,10 @@
  * Output: JSON with { items: string[], raw: string }
  */
 
+'use strict';
+
 const fs = require('fs');
-
-function parseHandoff(text) {
-  const match = text.match(/---\s*HANDOFF\s*---\s*\n([\s\S]*?)(?:\n---|\Z)/i);
-  if (!match) {
-    return { found: false, items: [], raw: '' };
-  }
-
-  const raw = match[1].trim();
-  const items = raw.split('\n')
-    .map(line => line.replace(/^[-*]\s*/, '').trim())
-    .filter(Boolean);
-
-  return { found: true, items, raw };
-}
+const { parseHandoff } = require('../core/fleet/parse-handoff');
 
 function main() {
   const args = process.argv.slice(2);
@@ -41,15 +30,11 @@ function main() {
     }
   }
 
-  let text;
-  if (inputFile) {
-    text = fs.readFileSync(inputFile, 'utf8');
-  } else {
-    text = fs.readFileSync(0, 'utf8');
-  }
+  const text = inputFile
+    ? fs.readFileSync(inputFile, 'utf8')
+    : fs.readFileSync(0, 'utf8');
 
-  const result = parseHandoff(text);
-  process.stdout.write(JSON.stringify(result, null, 2));
+  process.stdout.write(JSON.stringify(parseHandoff(text), null, 2));
 }
 
 main();

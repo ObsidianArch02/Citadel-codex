@@ -166,6 +166,18 @@ If the language checker isn't installed, log a message:
 "Note: [mypy/pyright] not found. Install it for per-file type checking, or the
 typecheck hook will be skipped."
 
+**Canonical project spec first:**
+
+Before writing runtime guidance files, seed the canonical spec:
+
+```bash
+node {citadel-root}/scripts/bootstrap-project-guidance.js --project-root {project-root}
+```
+
+This creates `.citadel/project.md` when missing and generates both `CLAUDE.md`
+and `AGENTS.md` from the canonical spec. Treat `.citadel/project.md` as the
+source of truth going forward.
+
 **CLAUDE.md — Merge, Never Overwrite:**
 
 If CLAUDE.md does NOT exist, generate a starter:

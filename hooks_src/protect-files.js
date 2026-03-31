@@ -23,6 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const health = require('./harness-health-util');
+const { findActiveCampaign } = require('../core/campaigns/load-campaign');
 
 const PROJECT_ROOT = health.PROJECT_ROOT;
 
@@ -157,72 +158,26 @@ function run(input) {
  */
 function checkCampaignScope(relativePath, toolName, _filePath) {
   try {
-    const campaignsDir = path.join(PROJECT_ROOT, '.planning', 'campaigns');
-    if (!fs.existsSync(campaignsDir)) return;
+    const campaign = findActiveCampaign(PROJECT_ROOT);
+    if (!campaign) return;
 
-    // Find all campaign files (not in completed/)
-    let campaignFiles;
-    try {
-      campaignFiles = fs.readdirSync(campaignsDir).filter((f) => f.endsWith('.md'));
-    } catch {
-      return; // unreadable directory — skip silently
-    }
+    const rawName = campaign.slug || 'campaign';
+    const campaignName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_');
 
-    if (campaignFiles.length === 0) return;
-
-    // Use the first active campaign file found
-    let campaignText = null;
-    let campaignName = null;
-    for (const file of campaignFiles) {
-      try {
-        const text = fs.readFileSync(path.join(campaignsDir, file), 'utf8');
-        // Only consider campaigns with Status: active
-        if (/^Status:\s*active/im.test(text)) {
-          campaignText = text;
-          // Sanitize campaign name before rendering into LLM-facing messages:
-          // strip non-alphanumeric chars (except hyphens/underscores) to prevent
-          // prompt injection via adversarial filenames.
-          const rawName = file.replace(/\.md$/, '');
-          campaignName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_');
-          break;
-        }
-      } catch {
-        // Malformed or unreadable — skip
+    for (const entry of campaign.restrictedFiles || []) {
+      if (entry && matchPattern(relativePath, entry)) {
+        health.logBlock('protect-files', 'blocked-restricted', `${toolName} ${relativePath} (campaign: ${campaignName}, restricted: ${entry})`);
+        hookOutput('protect-files', 'blocked',
+          `[protect-files] Blocked: ${relativePath} is declared RESTRICTED by campaign "${campaignName}". ` +
+          `Remove it from the campaign's "Restricted Files" section to allow edits.`,
+          { file: relativePath, campaign: campaignName, restrictedEntry: entry, tool: toolName }
+        );
+        process.exit(2);
       }
     }
 
-    if (!campaignText) return; // No active campaign — skip
-
-    // Extract "## Restricted Files" section
-    const restrictedMatch = campaignText.match(/^##\s+Restricted Files\s*\n([\s\S]*?)(?=^##|(?![\s\S]))/m);
-    if (restrictedMatch) {
-      const restrictedLines = restrictedMatch[1]
-        .split('\n')
-        .map((l) => l.replace(/^[-*\s]+/, '').trim())
-        .filter(Boolean);
-      for (const entry of restrictedLines) {
-        if (entry && matchPattern(relativePath, entry)) {
-          health.logBlock('protect-files', 'blocked-restricted', `${toolName} ${relativePath} (campaign: ${campaignName}, restricted: ${entry})`);
-          hookOutput('protect-files', 'blocked',
-            `[protect-files] Blocked: ${relativePath} is declared RESTRICTED by campaign "${campaignName}". ` +
-            `Remove it from the campaign's "Restricted Files" section to allow edits.`,
-            { file: relativePath, campaign: campaignName, restrictedEntry: entry, tool: toolName }
-          );
-          process.exit(2);
-        }
-      }
-    }
-
-    // Extract "## Claimed Scope" section
-    const scopeMatch = campaignText.match(/^##\s+Claimed Scope\s*\n([\s\S]*?)(?=^##|(?![\s\S]))/m);
-    if (!scopeMatch) return; // No claimed scope declared — skip
-
-    const scopeEntries = scopeMatch[1]
-      .split('\n')
-      .map((l) => l.replace(/^[-*\s]+/, '').trim())
-      .filter(Boolean);
-
-    if (scopeEntries.length === 0) return; // Empty scope — skip
+    const scopeEntries = campaign.claimedScope || [];
+    if (scopeEntries.length === 0) return;
 
     // Check if this file is within any claimed scope entry
     for (const entry of scopeEntries) {

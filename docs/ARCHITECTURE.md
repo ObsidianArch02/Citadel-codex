@@ -4,8 +4,8 @@
 
 How the harness works, from intent to execution.
 
-For the compatibility-first plan to make Citadel runtime-agnostic, see
-[`docs/RUNTIME_AGNOSTIC_BACKLOG.md`](RUNTIME_AGNOSTIC_BACKLOG.md).
+For the runtime-agnostic contract boundary, see
+[`docs/architecture/runtime-contract.md`](architecture/runtime-contract.md).
 
 ## The Orchestration Ladder
 
@@ -63,7 +63,8 @@ Automatic shell scripts that fire on lifecycle events:
 | `worktree-setup.js` | WorktreeCreate | Initialize worktrees for parallel agents |
 
 Hook definitions live in `hooks/hooks-template.json`. They are installed per-project
-via `scripts/install-hooks.js`, which resolves paths to absolute locations.
+via the Claude runtime adapter in `runtimes/claude-code/generators/install-hooks.js`,
+with `scripts/install-hooks.js` kept as the public entrypoint.
 One hook per lifecycle event (consolidate rather than chain).
 
 ## Campaign Files

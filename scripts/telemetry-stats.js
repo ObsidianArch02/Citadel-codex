@@ -11,19 +11,19 @@
 
 const fs = require('fs');
 const path = require('path');
+const { readJsonlDetailed } = require('../core/telemetry/io');
+const { readCampaignStats: readCampaignStatsCore } = require('../core/campaigns/load-campaign');
+const { getCoordinationStatus } = require('../core/coordination/instances');
+const { getClaimStatus } = require('../core/coordination/claims');
 
 // Real token reader for enriched cost data
 let sessionTokens = null;
-try { sessionTokens = require('./session-tokens'); } catch { /* not available */ }
+try { sessionTokens = require('../runtimes/claude-code/adapters/session-tokens'); } catch { /* not available */ }
 
 const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const PLANNING_DIR = path.join(ROOT, '.planning');
 const TELEMETRY_DIR = path.join(PLANNING_DIR, 'telemetry');
-const CAMPAIGNS_DIR = path.join(PLANNING_DIR, 'campaigns');
 const FLEET_DIR = path.join(PLANNING_DIR, 'fleet');
-const COORD_DIR = path.join(PLANNING_DIR, 'coordination');
-const INSTANCES_DIR = path.join(COORD_DIR, 'instances');
-const CLAIMS_DIR = path.join(COORD_DIR, 'claims');
 const SETTINGS_PATH = path.join(ROOT, '.claude', 'settings.json');
 
 // Token estimation constants
@@ -34,12 +34,7 @@ const TOKENS_PER_QUALITY_VIOLATION = 8000; // avg fix session avoided per violat
 // ── Generic helpers ───────────────────────────────────────────────────────────
 
 function readJsonl(file) {
-  if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map(line => { try { return JSON.parse(line); } catch { return null; } })
-    .filter(Boolean);
+  return readJsonlDetailed(file).entries;
 }
 
 function readJson(file) {
@@ -59,24 +54,7 @@ function todayPrefix() {
 // ── Campaign stats ────────────────────────────────────────────────────────────
 
 function readCampaignStats() {
-  const active = [];
-  const completedDir = path.join(CAMPAIGNS_DIR, 'completed');
-
-  if (fs.existsSync(CAMPAIGNS_DIR)) {
-    const files = fs.readdirSync(CAMPAIGNS_DIR);
-    for (const f of files) {
-      if (f.endsWith('.md') && !f.startsWith('_')) {
-        active.push(f.replace(/\.md$/, ''));
-      }
-    }
-  }
-
-  let completed_count = 0;
-  if (fs.existsSync(completedDir)) {
-    completed_count = fs.readdirSync(completedDir).filter(f => f.endsWith('.md')).length;
-  }
-
-  return { active, completed_count };
+  return readCampaignStatsCore(ROOT);
 }
 
 // ── Fleet stats ───────────────────────────────────────────────────────────────
@@ -137,8 +115,8 @@ function readTelemetryFileStats() {
 // ── Coordination stats ────────────────────────────────────────────────────────
 
 function readCoordinationStats() {
-  const claims = listFiles(CLAIMS_DIR, '.json').filter(f => !f.startsWith('.')).length;
-  const instances = listFiles(INSTANCES_DIR, '.json').filter(f => !f.startsWith('.')).length;
+  const claims = getClaimStatus({ projectRoot: ROOT }).claims.length;
+  const instances = getCoordinationStatus({ projectRoot: ROOT }).instances.length;
   return { active_claims: claims, active_instances: instances };
 }
 

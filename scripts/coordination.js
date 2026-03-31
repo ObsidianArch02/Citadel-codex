@@ -22,140 +22,51 @@
  *   status                               Show all active instances and claims
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+'use strict';
 
-// ── Paths ────────────────────────────────────────────────────────────────────
-
-const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const COORD_DIR = path.join(ROOT, '.planning', 'coordination');
-const INSTANCES_DIR = path.join(COORD_DIR, 'instances');
-const CLAIMS_DIR = path.join(COORD_DIR, 'claims');
-
-const STALE_INSTANCE_MS = 2 * 60 * 60 * 1000; // 2 hours
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
-function writeJsonAtomic(filePath, data) {
-  const tmp = filePath + '.tmp.' + process.pid;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, filePath);
-}
-
-function readJson(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function listJsonFiles(dir) {
-  ensureDir(dir);
-  return fs.readdirSync(dir)
-    .filter(f => f.endsWith('.json') && !f.startsWith('.'))
-    .map(f => ({ name: f, path: path.join(dir, f), data: readJson(path.join(dir, f)) }))
-    .filter(f => f.data !== null);
-}
-
-function isProcessAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function scopesOverlap(scopeA, scopeB) {
-  for (const a of scopeA) {
-    if (a.endsWith('(read-only)')) continue;
-    const cleanA = a.replace(/\(read-only\)$/, '').trim();
-    for (const b of scopeB) {
-      if (b.endsWith('(read-only)')) continue;
-      const cleanB = b.replace(/\(read-only\)$/, '').trim();
-      // Parent/child overlap
-      if (cleanA.startsWith(cleanB) || cleanB.startsWith(cleanA)) return true;
-    }
-  }
-  return false;
-}
-
-// ── Commands ─────────────────────────────────────────────────────────────────
+const { generateInstanceId } = require('../core/coordination/io');
+const { registerInstance, unregisterInstance, heartbeatInstance, getCoordinationStatus } = require('../core/coordination/instances');
+const { claimScope, findOverlap, getClaimStatus, releaseClaim } = require('../core/coordination/claims');
+const { sweepStaleInstances } = require('../core/coordination/sweep');
 
 function generateId() {
-  const id = 'agent-' + crypto.randomBytes(4).toString('hex');
+  const id = generateInstanceId();
   console.log(id);
   return id;
 }
 
 function register(id) {
-  ensureDir(INSTANCES_DIR);
-  const data = {
-    instanceId: id,
-    startedAt: new Date().toISOString(),
-    lastSeen: new Date().toISOString(),
-    status: 'active',
-    pid: process.ppid || process.pid,
-    campaignSlug: null,
-  };
-  writeJsonAtomic(path.join(INSTANCES_DIR, `${id}.json`), data);
+  registerInstance(id);
   console.log(`Registered instance: ${id}`);
 }
 
 function unregister(id) {
-  const file = path.join(INSTANCES_DIR, `${id}.json`);
-  if (fs.existsSync(file)) fs.unlinkSync(file);
-  // Also release any claims
-  const claimFile = path.join(CLAIMS_DIR, `${id}.json`);
-  if (fs.existsSync(claimFile)) fs.unlinkSync(claimFile);
+  unregisterInstance(id);
   console.log(`Unregistered instance: ${id}`);
 }
 
 function heartbeat(id) {
-  const file = path.join(INSTANCES_DIR, `${id}.json`);
-  const data = readJson(file);
-  if (!data) {
-    console.error(`Instance not found: ${id}`);
+  try {
+    heartbeatInstance(id);
+  } catch (error) {
+    console.error(error.message);
     process.exit(1);
   }
-  data.lastSeen = new Date().toISOString();
-  writeJsonAtomic(file, data);
 }
 
 function claim(id, scope, type, desc) {
-  ensureDir(CLAIMS_DIR);
-
-  // Check for overlaps
-  const existingClaims = listJsonFiles(CLAIMS_DIR);
-  for (const existing of existingClaims) {
-    if (existing.data.instanceId === id) continue;
-    if (scopesOverlap(scope, existing.data.scope || [])) {
-      console.error(`Scope overlap with ${existing.data.instanceId}: ${existing.data.scope.join(', ')}`);
-      process.exit(1);
-    }
+  try {
+    claimScope(id, scope, type, desc);
+    console.log(`Claimed scope: ${scope.join(', ')}`);
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
   }
-
-  const data = {
-    instanceId: id,
-    type: type || 'unknown',
-    scope,
-    description: desc || '',
-    claimedAt: new Date().toISOString(),
-  };
-  writeJsonAtomic(path.join(CLAIMS_DIR, `${id}.json`), data);
-  console.log(`Claimed scope: ${scope.join(', ')}`);
 }
 
 function release(id) {
-  const file = path.join(CLAIMS_DIR, `${id}.json`);
-  if (fs.existsSync(file)) {
-    fs.unlinkSync(file);
+  const removed = releaseClaim(id);
+  if (removed) {
     console.log(`Released claim for: ${id}`);
   } else {
     console.log(`No claim found for: ${id}`);
@@ -163,48 +74,32 @@ function release(id) {
 }
 
 function checkOverlap(scope) {
-  const existingClaims = listJsonFiles(CLAIMS_DIR);
-  for (const existing of existingClaims) {
-    if (scopesOverlap(scope, existing.data.scope || [])) {
-      console.log(`OVERLAP with ${existing.data.instanceId}: ${existing.data.scope.join(', ')}`);
-      process.exit(1);
-    }
+  const overlap = findOverlap(scope);
+  if (overlap) {
+    console.log(`OVERLAP with ${overlap.instanceId}: ${(overlap.scope || []).join(', ')}`);
+    process.exit(1);
   }
   console.log('No overlap detected');
 }
 
 function sweep() {
-  const instances = listJsonFiles(INSTANCES_DIR);
-  const now = Date.now();
-  let cleaned = 0;
-
-  for (const inst of instances) {
-    const lastSeen = new Date(inst.data.lastSeen).getTime();
-    const isStale = (now - lastSeen) > STALE_INSTANCE_MS;
-    const isDead = inst.data.pid && !isProcessAlive(inst.data.pid);
-
-    if (isStale || isDead) {
-      fs.unlinkSync(inst.path);
-      const claimFile = path.join(CLAIMS_DIR, inst.name);
-      if (fs.existsSync(claimFile)) fs.unlinkSync(claimFile);
-      cleaned++;
-      console.log(`Swept: ${inst.data.instanceId} (${isDead ? 'dead process' : 'stale'})`);
-    }
+  const result = sweepStaleInstances();
+  for (const entry of result.swept) {
+    console.log(`Swept: ${entry.instanceId} (${entry.reason})`);
   }
-
-  console.log(`Sweep complete. Cleaned ${cleaned} instance(s).`);
+  console.log(`Sweep complete. Cleaned ${result.cleaned} instance(s).`);
 }
 
 function status() {
-  const instances = listJsonFiles(INSTANCES_DIR);
-  const claims = listJsonFiles(CLAIMS_DIR);
+  const instances = getCoordinationStatus().instances;
+  const claims = getClaimStatus().claims;
 
   console.log('\n=== Active Instances ===');
   if (instances.length === 0) {
     console.log('  (none)');
   } else {
-    for (const inst of instances) {
-      console.log(`  ${inst.data.instanceId} | status: ${inst.data.status} | since: ${inst.data.startedAt}`);
+    for (const instance of instances) {
+      console.log(`  ${instance.instanceId} | status: ${instance.status} | since: ${instance.startedAt}`);
     }
   }
 
@@ -212,14 +107,12 @@ function status() {
   if (claims.length === 0) {
     console.log('  (none)');
   } else {
-    for (const cl of claims) {
-      console.log(`  ${cl.data.instanceId} | scope: ${(cl.data.scope || []).join(', ')} | type: ${cl.data.type}`);
+    for (const claimEntry of claims) {
+      console.log(`  ${claimEntry.instanceId} | scope: ${(claimEntry.scope || []).join(', ')} | type: ${claimEntry.type}`);
     }
   }
   console.log('');
 }
-
-// ── CLI ──────────────────────────────────────────────────────────────────────
 
 function parseArgs() {
   const args = {};
@@ -230,7 +123,7 @@ function parseArgs() {
     const key = argv[i];
     const val = argv[i + 1];
     if (key === '--id') { args.id = val; i++; }
-    else if (key === '--scope') { args.scope = val.split(',').map(s => s.trim()); i++; }
+    else if (key === '--scope') { args.scope = val.split(',').map(part => part.trim()); i++; }
     else if (key === '--type') { args.type = val; i++; }
     else if (key === '--desc') { args.desc = val; i++; }
   }
