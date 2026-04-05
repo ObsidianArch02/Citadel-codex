@@ -13,7 +13,7 @@ function main() {
   const contracts = require(path.join(__dirname, '..', 'core', 'contracts'));
   const runtimeModule = contracts.runtime;
 
-  if (!contracts.events || !contracts.capabilities || !contracts.projectSpec) {
+  if (!contracts.events || !contracts.capabilities || !contracts.projectSpec || !contracts.codexConfig) {
     fail('core/contracts index is missing required contract exports');
   }
 
@@ -33,6 +33,12 @@ function main() {
 
   if (!contracts.capabilities.isSupportLevel('full')) {
     fail('full must be recognized as a valid support level');
+  }
+
+  const codexConfig = contracts.codexConfig.createCodexConfigSkeleton();
+  const codexConfigErrors = contracts.codexConfig.validateCodexConfig(codexConfig);
+  if (codexConfigErrors.length > 0) {
+    fail(`codex config skeleton is invalid: ${codexConfigErrors.join('; ')}`);
   }
 
   console.log('Runtime contract tests pass.');

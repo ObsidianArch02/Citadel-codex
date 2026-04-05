@@ -3,11 +3,12 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot } = require('../project-paths');
 
 const STALE_INSTANCE_MS = 2 * 60 * 60 * 1000;
 
 function getProjectRoot(projectRoot) {
-  return projectRoot || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  return resolveProjectRoot(projectRoot);
 }
 
 function getCoordinationPaths(projectRoot) {

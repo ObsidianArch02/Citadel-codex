@@ -12,13 +12,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot } = require('../core/project-paths');
 const {
   compressDiscovery,
   logCompressionStat,
   parseArgs,
 } = require('../core/fleet/compress-discovery');
 
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const PROJECT_ROOT = resolveProjectRoot();
 
 function main() {
   const args = parseArgs(process.argv);

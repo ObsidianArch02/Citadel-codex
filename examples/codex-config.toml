@@ -1,0 +1,57 @@
+version = 1
+language = "typescript"
+framework = "react"
+packageManager = "pnpm"
+protectedFiles = [".codex/config.toml", ".codex/state.json", "src/generated/**"]
+dependencyPatterns = ["src/**", "docs/**"]
+
+[typecheck]
+command = "pnpm exec tsc --noEmit"
+perFile = true
+
+[test]
+command = "pnpm test"
+framework = "vitest"
+
+[qualityRules]
+builtIn = ["no-confirm-alert", "no-transition-all"]
+custom = [{ pattern = "dangerouslySetInnerHTML", message = "manual review required" }]
+
+[features]
+intakeScanner = true
+telemetry = true
+
+[agentTimeouts]
+command = 300
+research = 1200
+
+[policy]
+scopeEnforcement = "warn"
+auditLog = true
+allowedOutOfScopeTools = []
+
+[verification]
+hot = ["programmatic", "structural", "performance"]
+cold = ["performance", "accessibility", "adversarial", "contractual", "cross-reference"]
+disabled = []
+
+[preCompact]
+handoffMode = "auto"
+
+[docs]
+auto = true
+audiences = ["user", "org", "agents"]
+exclude = []
+
+[cost]
+enabled = true
+mode = "api"
+thresholds = [5, 15, 30, 50]
+checkIntervalMs = 180000
+campaignBudgetAlerts = true
+sessionEndSummary = true
+
+[modelMapping]
+opus = "gpt-5.4"
+sonnet = "gpt-5.4-mini"
+haiku = "gpt-5.4-mini"

@@ -2,10 +2,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot } = require('../project-paths');
 const { parseCampaignContent } = require('./parse-campaign');
 
 function getProjectRoot(projectRoot) {
-  return projectRoot || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  return resolveProjectRoot(projectRoot);
 }
 
 function getCampaignPaths(projectRoot) {

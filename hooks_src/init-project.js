@@ -11,9 +11,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot } = require('../core/project-paths');
 
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const PROJECT_ROOT = resolveProjectRoot();
 
 const PLANNING_DIRS = [
   '.planning',
@@ -109,7 +110,11 @@ function main() {
       if (fs.existsSync(script)) {
         require('child_process').spawnSync('node', [script, 'sweep'], {
           cwd: PROJECT_ROOT,
-          env: { ...process.env, CLAUDE_PROJECT_DIR: PROJECT_ROOT },
+          env: {
+            ...process.env,
+            CITADEL_PROJECT_DIR: PROJECT_ROOT,
+            CLAUDE_PROJECT_DIR: PROJECT_ROOT,
+          },
           timeout: 5000,
         });
       }
@@ -147,14 +152,7 @@ function main() {
       writeVersionFile(PLUGIN_ROOT, PROJECT_ROOT);
     }
 
-    // 5. Copy agent-context if missing
-    const agentContext = path.join(PROJECT_ROOT, '.claude', 'agent-context');
-    const pluginAgentContext = path.join(PLUGIN_ROOT, '.claude', 'agent-context');
-    if (!fs.existsSync(agentContext) && fs.existsSync(pluginAgentContext)) {
-      copyDirRecursive(pluginAgentContext, agentContext);
-    }
-
-    // 6. Write .citadel-root marker (plugin path for reference)
+    // 5. Write .citadel-root marker (plugin path for reference)
     const citadelDir = path.join(PROJECT_ROOT, '.citadel');
     ensureDir(citadelDir);
     fs.writeFileSync(
@@ -162,10 +160,10 @@ function main() {
       PLUGIN_ROOT
     );
 
-    // 7. Watchdog — check for stale command results from a previous session
+    // 6. Watchdog — check for stale command results from a previous session
     checkStaleCommandResult();
 
-    // 8. Daemon bootstrap — detect active daemon and prompt continuation
+    // 7. Daemon bootstrap — detect active daemon and prompt continuation
     checkDaemonState();
 
   } catch (err) {
@@ -276,10 +274,11 @@ function checkDaemonState() {
       : '';
     const sessions = daemon.sessionCount || 0;
 
-    // Non-interactive: CLAUDE_NON_INTERACTIVE env var set by the scheduled task script.
-    // Auto-execute is appropriate here (cron, RemoteTrigger, overnight factory).
+    // Non-interactive: CITADEL_NON_INTERACTIVE is set by the scheduled task script.
+    // Auto-execute is appropriate here (cron, automation, overnight factory).
     // Note: process.argv won't contain parent's -p flag -- hooks are child processes.
-    const isNonInteractive = process.env.CLAUDE_NON_INTERACTIVE === '1';
+    const isNonInteractive = process.env.CITADEL_NON_INTERACTIVE === '1'
+      || process.env.CLAUDE_NON_INTERACTIVE === '1';
 
     if (isNonInteractive) {
       process.stdout.write(

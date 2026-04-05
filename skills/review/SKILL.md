@@ -40,7 +40,7 @@ For diff mode, also read the full file for each changed file so you have context
 ## Step 2 — Load project conventions
 
 Before reviewing, check for project-level style guides and conventions:
-- Read `CLAUDE.md`, `.eslintrc*`, `tsconfig.json`, `.prettierrc*`, `pyproject.toml`, `Cargo.toml`, or equivalent config files at the repo root
+- Read `AGENTS.md` first (fallback to legacy `CLAUDE.md` only if present), then `.eslintrc*`, `tsconfig.json`, `.prettierrc*`, `pyproject.toml`, `Cargo.toml`, or equivalent config files at the repo root
 - Note the project's import style, error handling patterns, naming conventions, and test patterns
 - These become the baseline for Pass 5 (Consistency). If no conventions exist, skip convention-specific findings in Pass 5 but still flag internal inconsistency within the reviewed code
 

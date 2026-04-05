@@ -1,7 +1,7 @@
 {
   "name": "citadel",
   "version": "1.0.0",
-  "description": "Agent orchestration system for Claude Code — route any task through the right tool at the right scale",
+  "description": "Codex-native agent orchestration system for routing, memory, hooks, and coordination",
   "author": "",
   "license": "MIT",
   "scripts": {
@@ -14,8 +14,8 @@
     "test:hooks": "node hooks_src/smoke-test.js"
   },
   "keywords": [
-    "claude",
-    "claude-code",
+    "codex",
+    "openai-codex",
     "agent",
     "harness",
     "orchestration",

@@ -2,8 +2,9 @@
 name: cost
 description: >-
   Deep cost exploration and transparency. Shows real token usage, session costs,
-  campaign spend, burn rates, and model breakdown. Reads Claude Code's native
-  session data for exact numbers. Complements /dashboard with focused cost views.
+  campaign spend, burn rates, and model breakdown. Uses Codex-era local
+  telemetry by default and falls back to legacy Claude session imports only
+  when the project explicitly has that historical data.
 user-invocable: true
 auto-trigger: false
 last-updated: 2026-03-30
@@ -13,9 +14,9 @@ last-updated: 2026-03-30
 
 ## Identity
 
-/cost gives you the full cost picture. It reads real token data from Claude
-Code's session files and combines it with Citadel's campaign attribution to
-answer: how much did this cost, where did the money go, and is it worth it?
+/cost gives you the full cost picture. It reads Citadel's local telemetry and
+campaign attribution, then uses legacy Claude session files only as an optional
+compatibility source for historical exact token data.
 
 ## When to Use
 
@@ -37,9 +38,16 @@ Optional arguments parsed from user message:
 
 ## Protocol
 
-### Step 1: READ REAL DATA
+### Step 1: READ AVAILABLE DATA
 
-Run the session-tokens.js script to get real token data:
+Read the active Codex-first telemetry sources first:
+
+- `.planning/telemetry/cost-tracker-state.json` for live burn rate
+- `.planning/telemetry/session-costs.jsonl` for campaign attribution
+- `scripts/pricing.json` to show which pricing is being used
+
+If the user explicitly asks for historical exact token data and the project has
+legacy Claude session archives available, then run the compatibility reader:
 
 ```bash
 node scripts/session-tokens.js              # current/latest session
@@ -47,13 +55,8 @@ node scripts/session-tokens.js --today      # today's sessions
 node scripts/session-tokens.js --all        # all sessions (use for week/all/campaign)
 ```
 
-Also read:
-- `.planning/telemetry/cost-tracker-state.json` for live burn rate
-- `.planning/telemetry/session-costs.jsonl` for campaign attribution
-- `scripts/pricing.json` to show which pricing is being used
-
-If `session-tokens.js` is not available or fails, fall back to session-costs.jsonl
-data and clearly mark output as "(estimated)".
+If `session-tokens.js` is unavailable or returns no data, keep the report on
+Codex-first telemetry and clearly mark it as estimated.
 
 ### Step 2: RENDER BASED ON SCOPE
 
@@ -133,8 +136,7 @@ After the cost data, add one of these contextual lines based on the numbers:
   could be restructured into smaller focused sessions."
 - If cache hit rate < 50%: "Low cache hit rate. Long conversations with many tool
   results tend to have lower cache efficiency."
-- If no real data available: "Cost data is estimated. Real token data becomes
-  available when sessions complete and Claude Code writes session JSONL files."
+- If no real token archive is available: "Cost data is estimated from local telemetry. Exact legacy token archives are only available when this project still has imported Claude session JSONL."
 - Otherwise: no extra context needed.
 
 ### Step 4: FRINGE CASES
@@ -142,10 +144,9 @@ After the cost data, add one of these contextual lines based on the numbers:
 **If scripts/session-tokens.js does not exist:**
 Fall back to session-costs.jsonl data. Show estimated costs with "(est)" marker.
 
-**If no session data exists:**
+**If no legacy session archive exists:**
 ```
-No session data found. Cost tracking requires Claude Code session files
-at ~/.claude/projects/. These are created automatically by Claude Code.
+No legacy session archive found. Showing Codex-era telemetry estimates only.
 ```
 
 **If pricing.json is missing or unreadable:**

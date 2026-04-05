@@ -5,14 +5,13 @@
 const fs = require('fs');
 const path = require('path');
 const { loadProjectSpec } = require(path.join(__dirname, '..', 'core', 'project', 'load-project-spec'));
-const { CLAUDE_GUIDANCE_TARGET } = require(path.join(__dirname, '..', 'runtimes', 'claude-code', 'guidance', 'render'));
 const { CODEX_GUIDANCE_TARGET } = require(path.join(__dirname, '..', 'runtimes', 'codex', 'guidance', 'render'));
 
 function parseArgs(argv) {
   const args = {
     projectRoot: process.cwd(),
     specPath: null,
-    target: 'all',
+    target: 'codex',
     write: false,
     overwrite: false,
   };
@@ -31,10 +30,6 @@ function parseArgs(argv) {
 
 function buildTargets(spec) {
   return {
-    claude: {
-      filePath: CLAUDE_GUIDANCE_TARGET.filePath,
-      content: CLAUDE_GUIDANCE_TARGET.render(spec),
-    },
     codex: {
       filePath: CODEX_GUIDANCE_TARGET.filePath,
       content: CODEX_GUIDANCE_TARGET.render(spec),
@@ -57,7 +52,7 @@ function main() {
   }
 
   const allTargets = buildTargets(loaded.spec);
-  const targetNames = args.target === 'all' ? ['claude', 'codex'] : [args.target];
+  const targetNames = args.target === 'all' ? ['codex'] : [args.target];
 
   for (const targetName of targetNames) {
     const target = allTargets[targetName];

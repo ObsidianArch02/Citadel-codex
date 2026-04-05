@@ -13,7 +13,7 @@ function fail(message) {
 
 function main() {
   const runtimeIds = listRuntimeIds();
-  if (!runtimeIds.includes('claude-code') || !runtimeIds.includes('codex') || !runtimeIds.includes('unknown')) {
+  if (!runtimeIds.includes('codex') || !runtimeIds.includes('unknown')) {
     fail('Runtime registry missing one or more expected runtime ids');
   }
 
@@ -21,14 +21,11 @@ function main() {
     fail('Detect-runtime valid runtime list missing codex');
   }
 
-  const claude = getRuntimeDefinition('claude-code');
   const codex = getRuntimeDefinition('codex');
   const unknown = getRuntimeDefinition('does-not-exist');
 
-  if (claude.id !== 'claude-code') fail('Claude runtime definition mismatch');
   if (codex.id !== 'codex') fail('Codex runtime definition mismatch');
   if (unknown.id !== 'unknown') fail('Unknown runtime fallback mismatch');
-  if (claude.capabilities.hooks.support !== 'full') fail('Claude runtime hooks capability mismatch');
   if (codex.capabilities.hooks.support === 'full') fail('Codex runtime hooks support should not be full');
 
   const origEnv = process.env.CITADEL_RUNTIME;

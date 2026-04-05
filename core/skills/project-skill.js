@@ -2,9 +2,13 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { loadSkill } = require('./parse-skill');
+
+const SKILL_PROJECTION_MANIFEST = '.citadel-skill-manifest.json';
+const SKILL_PROJECTION_SCHEMA_VERSION = 1;
 
 function renderOpenAIYaml(parsedSkill) {
   const displayName = (parsedSkill.frontmatter.name || 'unknown').replace(/"/g, '\\"');
@@ -25,11 +29,128 @@ function ensureDir(dir) {
   }
 }
 
+function hashContent(content) {
+  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
+function hashFileIfExists(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  return hashContent(fs.readFileSync(filePath, 'utf8'));
+}
+
+function readJsonIfExists(filePath, fallback = null) {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(filePath, data) {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+}
+
+function buildEmptySkillManifest() {
+  return {
+    schemaVersion: SKILL_PROJECTION_SCHEMA_VERSION,
+    generator: 'citadel-codex-skill-projection',
+    generatedAt: null,
+    skills: {},
+  };
+}
+
+function loadSkillProjectionManifest(targetBaseDir) {
+  const manifestPath = path.join(targetBaseDir, SKILL_PROJECTION_MANIFEST);
+  const manifest = readJsonIfExists(manifestPath, buildEmptySkillManifest());
+  if (!manifest || typeof manifest !== 'object') {
+    return { manifestPath, manifest: buildEmptySkillManifest() };
+  }
+  if (!manifest.skills || typeof manifest.skills !== 'object') manifest.skills = {};
+  if (!manifest.schemaVersion) manifest.schemaVersion = SKILL_PROJECTION_SCHEMA_VERSION;
+  return { manifestPath, manifest };
+}
+
+function writeSkillProjectionManifest(targetBaseDir, manifest) {
+  const manifestPath = path.join(targetBaseDir, SKILL_PROJECTION_MANIFEST);
+  writeJson(manifestPath, manifest);
+  return manifestPath;
+}
+
+function getManagedFileMap(skillName, targetSkillPath, targetYamlPath) {
+  return {
+    [`${skillName}/SKILL.md`]: hashFileIfExists(targetSkillPath),
+    [`${skillName}/agents/openai.yaml`]: hashFileIfExists(targetYamlPath),
+  };
+}
+
+function detectSkillDrift(skillName, targetSkillPath, targetYamlPath, manifestEntry) {
+  if (!manifestEntry || !manifestEntry.managedFiles) return [];
+
+  const current = getManagedFileMap(skillName, targetSkillPath, targetYamlPath);
+  const drift = [];
+  for (const [relativePath, expectedHash] of Object.entries(manifestEntry.managedFiles)) {
+    const currentHash = current[relativePath] || null;
+    if (currentHash !== expectedHash) {
+      drift.push({
+        path: relativePath,
+        expectedHash,
+        currentHash,
+      });
+    }
+  }
+  return drift;
+}
+
 function projectSkillToCodex(sourceDir, targetBaseDir, skillName, options = {}) {
   const parsedSkill = loadSkill(sourceDir, skillName);
   const targetDir = path.join(targetBaseDir, skillName);
   const targetSkillPath = path.join(targetDir, 'SKILL.md');
   const targetYamlPath = path.join(targetDir, 'agents', 'openai.yaml');
+  const sourceHash = hashFileIfExists(parsedSkill.path);
+  const manifestEntry = options.manifestEntry || null;
+  const force = options.force === true;
+  const existingSkillHash = hashFileIfExists(targetSkillPath);
+  const existingYamlHash = hashFileIfExists(targetYamlPath);
+  const unmanagedExisting = !manifestEntry && (existingSkillHash !== null || existingYamlHash !== null);
+  const drift = detectSkillDrift(skillName, targetSkillPath, targetYamlPath, manifestEntry);
+
+  if (unmanagedExisting && !force) {
+    return {
+      skillName,
+      parsedSkill,
+      status: 'skipped-unmanaged',
+      warnings: [
+        `Skipping ${skillName}: target files already exist without a Citadel manifest entry. Re-run with force to adopt.`,
+      ],
+      drift,
+      outputs: {
+        skillPath: targetSkillPath,
+        openaiYamlPath: targetYamlPath,
+      },
+      sourceHash,
+      nextManifestEntry: manifestEntry,
+    };
+  }
+
+  if (drift.length > 0 && !force) {
+    return {
+      skillName,
+      parsedSkill,
+      status: 'skipped-drift',
+      warnings: [
+        `Skipping ${skillName}: projected files diverged from manifest. Re-run with force to overwrite drifted files.`,
+      ],
+      drift,
+      outputs: {
+        skillPath: targetSkillPath,
+        openaiYamlPath: targetYamlPath,
+      },
+      sourceHash,
+      nextManifestEntry: manifestEntry,
+    };
+  }
 
   if (!options.dryRun) {
     ensureDir(path.dirname(targetSkillPath));
@@ -38,9 +159,40 @@ function projectSkillToCodex(sourceDir, targetBaseDir, skillName, options = {}) 
     fs.writeFileSync(targetYamlPath, renderOpenAIYaml(parsedSkill), 'utf8');
   }
 
+  const projectedSkillHash = options.dryRun ? hashContent(fs.readFileSync(parsedSkill.path, 'utf8')) : hashFileIfExists(targetSkillPath);
+  const projectedYaml = renderOpenAIYaml(parsedSkill);
+  const projectedYamlHash = options.dryRun ? hashContent(projectedYaml) : hashFileIfExists(targetYamlPath);
+
+  let status = 'projected-created';
+  if (existingSkillHash === projectedSkillHash && existingYamlHash === projectedYamlHash) {
+    status = 'projected-unchanged';
+  } else if (existingSkillHash !== null || existingYamlHash !== null) {
+    status = 'projected-updated';
+  }
+
+  const nextManifestEntry = {
+    skillName,
+    sourcePath: parsedSkill.path,
+    sourceHash,
+    projectedAt: new Date().toISOString(),
+    managedFiles: {
+      [`${skillName}/SKILL.md`]: projectedSkillHash,
+      [`${skillName}/agents/openai.yaml`]: projectedYamlHash,
+    },
+    metadata: {
+      generated: true,
+      overwritePolicy: 'manifest-managed',
+    },
+  };
+
   return {
     skillName,
     parsedSkill,
+    status,
+    warnings: [],
+    drift,
+    sourceHash,
+    nextManifestEntry,
     outputs: {
       skillPath: targetSkillPath,
       openaiYamlPath: targetYamlPath,
@@ -49,6 +201,12 @@ function projectSkillToCodex(sourceDir, targetBaseDir, skillName, options = {}) 
 }
 
 module.exports = Object.freeze({
+  SKILL_PROJECTION_MANIFEST,
+  SKILL_PROJECTION_SCHEMA_VERSION,
+  buildEmptySkillManifest,
+  detectSkillDrift,
+  loadSkillProjectionManifest,
+  writeSkillProjectionManifest,
   renderOpenAIYaml,
   projectSkillToCodex,
 });

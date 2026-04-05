@@ -12,7 +12,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const PROJECT_ROOT = process.env.CITADEL_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const CITADEL_DIR = path.join(PROJECT_ROOT, '.citadel');
 const STATE_FILE = path.join(CITADEL_DIR, 'issue-monitor-state.json');
 

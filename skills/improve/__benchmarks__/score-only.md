@@ -1,6 +1,12 @@
 ---
 name: score-only
+skill: improve
 description: Tests --score-only mode with no rubric present
+input: /improve citadel --score-only
+assert-contains:
+  - score
+assert-not-contains:
+  - traceback
 expected-behavior: Should detect missing rubric, prompt user or use default, output scores without making changes
 skip-execute: true
 ---

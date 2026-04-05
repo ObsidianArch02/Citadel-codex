@@ -296,7 +296,7 @@ MONITORING & ORGANIZATION
 UTILITIES
   /session-handoff      Session context transfer
   /setup                First-run harness configuration
-  /schedule [action]    Manage recurring tasks (CronCreate/Delete/List)
+  /schedule [action]    Plan recurring tasks and map them to a supported scheduler
   /merge-review         Fleet worktree merge conflict analysis
   /ascii-diagram        Perfectly aligned ASCII diagrams via character grid
   /do rollback          Restore to last campaign checkpoint (git stash pop)

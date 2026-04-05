@@ -47,7 +47,7 @@ Do NOT use Marshal for:
 
 Parse the user's direction into structured intent:
 
-1. Read CLAUDE.md to understand the project's architecture and conventions
+1. Read `AGENTS.md` to understand the project's architecture and conventions (fallback to legacy `CLAUDE.md` only if present)
 2. Identify: scope (which files/directories), perspective (user, developer, admin),
    mode (audit, fix, build, improve, map), depth (surface scan vs deep investigation)
 3. If the direction is ambiguous, make a reasonable interpretation and state it.
@@ -119,7 +119,7 @@ indefinitely on tool calls — the circuit breaker catches failures, not hangs.
 | Skill-level agents | 10 minutes |
 | Research agents | 15 minutes |
 
-Timeouts are configurable in `harness.json` under `agentTimeouts` (same config
+Timeouts are configurable in `.codex/config.toml` under `agentTimeouts` (legacy fallback: `.claude/harness.json`, same config
 Fleet uses). If an agent exceeds its timeout:
 
 1. Log the timeout in telemetry
@@ -135,7 +135,7 @@ Marshal Report's Findings section.
 - **Direction is vague** (e.g., "do the thing", "fix it", "make it better"): Ask one clarifying question before proceeding. Do not attempt to guess scope on truly ambiguous input — one focused question is cheaper than executing the wrong plan.
 - **A sub-task fails on first attempt**: Retry once with a different approach (narrower scope, different tool, simpler method). If the second attempt also fails, record the blocker in the report and move on.
 - **No relevant files found for the stated scope**: Report the empty result honestly. Do not fabricate findings. Suggest the user verify the scope or file paths.
-- **CLAUDE.md missing**: Proceed without it. Note the absence in the report so the user knows project conventions weren't applied.
+- **`AGENTS.md` missing**: Proceed without it. Note the absence in the report so the user knows project conventions weren't applied.
 - **Typecheck not configured**: Skip the verification step and note it as "unverified" in the report rather than blocking completion.
 
 ## Quality Gates

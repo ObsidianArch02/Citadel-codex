@@ -4,8 +4,8 @@ description: >-
   File sentinel that monitors the working directory for changes and marker
   comments, then auto-triggers appropriate skills. Poll-based via git diff
   against the last scan commit. Writes intake items for batch processing and
-  routes marker actions through /do. Designed for ephemeral Claude Code
-  sessions where filesystem watchers are not viable.
+  routes marker actions through /do. Designed for ephemeral agent sessions
+  where filesystem watchers are not viable.
 user-invocable: true
 auto-trigger: false
 last-updated: 2026-03-29
@@ -30,14 +30,14 @@ Use `/watch` when:
 
 Do NOT use `/watch` for:
 - One-off file inspection (just read the file)
-- Continuous real-time filesystem monitoring (Claude Code sessions are ephemeral)
+- Continuous real-time filesystem monitoring (sessions are ephemeral)
 - Tasks that need human judgment per file (use `/review` directly)
 
 ## Commands
 
 | Command | Behavior |
 |---|---|
-| `/watch start` | Start watching (poll via CronCreate, default 5m interval) |
+| `/watch start` | Start watching (stateful sentinel, default 5m interval) |
 | `/watch start --interval {N}m` | Set poll interval (default: 5m) |
 | `/watch stop` | Stop watching, tear down cron |
 | `/watch status` | Show watch state, last scan time, pending actions |
@@ -63,17 +63,15 @@ Do NOT use `/watch` for:
    time as `lastScanTime`, skip commit-based diffing)
 3. Store this as `lastScanCommit` -- the first scan will diff against this
 
-#### Step 3: Create poll schedule
+#### Step 3: Configure polling mode
 
-Use CronCreate to set up recurring scans:
+Default Codex path:
+- Persist interval and state in `.planning/watch-state.json`
+- Trigger scans manually with `/watch scan` or through an external scheduler
 
-```
-CronCreate:
-  interval: "{N}m"  (default: 5m)
-  command: "/watch scan"
-```
-
-Save the cron ID in the state file.
+Optional legacy runtime path:
+- If runtime-native scheduling tools exist, register `/watch scan` and save
+  the returned schedule ID in state.
 
 #### Step 4: Write state file
 
@@ -85,7 +83,7 @@ Write `.planning/watch-state.json`:
   "lastScanCommit": "abc1234",
   "lastScanTime": null,
   "interval": "5m",
-  "cronId": "{id from step 3}",
+  "cronId": null,
   "pendingActions": [],
   "processedMarkers": [],
   "stats": {
@@ -122,9 +120,9 @@ Use `/watch stop` to halt.
 
 1. Read `.planning/watch-state.json`. If it doesn't exist or `status` is not
    `"watching"`: "No watch is active."
-2. Delete the cron schedule:
+2. Remove runtime schedule binding when present:
    ```
-   CronDelete: {cronId}
+   Delete schedule id: {cronId}
    ```
    If the cron ID is missing or deletion fails, continue gracefully.
 3. Update state file:
@@ -371,9 +369,9 @@ Skip binary files during marker scanning. Detect via `git diff --numstat`
 Reset to defaults. Preserve `processedMarkers` if readable to avoid
 re-dispatching old markers. Log: "Watch state was corrupted. Reset to defaults."
 
-**CronCreate not available:**
-Warn: "CronCreate is not available. `/watch start` requires session-scoped
-scheduling. Use `/watch scan` for manual one-shot scans instead."
+**Runtime scheduler not available:**
+Warn: "Runtime scheduling is unavailable. `/watch start` tracks state only.
+Use `/watch scan` manually or configure an external scheduler."
 
 **Multiple scans overlap (slow scan + fast interval):**
 The cron interval should be longer than scan duration. If a scan takes longer
@@ -401,7 +399,7 @@ from growing unbounded.
   incrementally during the scan (prevents partial state on crash)
 - Must work on Windows, macOS, and Linux (Node.js fs + git CLI, no
   platform-specific filesystem watchers)
-- CronCreate failure must not leave watch in an inconsistent state
+- Scheduler setup failure must not leave watch in an inconsistent state
 
 ## Exit Protocol
 

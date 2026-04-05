@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const { resolveProjectRoot } = require('../project-paths');
 const { appendJsonl } = require('./io');
 const { SCHEMA_VERSION, validateAgentRunEvent } = require('./schema');
 
@@ -30,7 +31,7 @@ function createAgentRunEntry(args, options = {}) {
 }
 
 function logAgentRunEvent(args, options = {}) {
-  const projectRoot = options.projectRoot || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  const projectRoot = resolveProjectRoot(options.projectRoot);
   const entry = createAgentRunEntry(args, options);
   const validation = validateAgentRunEvent(entry);
   const paths = resolveTelemetryPaths(projectRoot);

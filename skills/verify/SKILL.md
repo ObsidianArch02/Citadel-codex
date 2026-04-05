@@ -16,8 +16,8 @@ last-updated: 2026-03-27
 
 /verify confirms the Citadel hook pipeline is working correctly in the current
 session. Unlike the offline tools (verify-hooks.js, integration-test.js), this
-runs inside a real Claude Code session — actual tool calls trigger actual hook
-dispatch. No synthetic payloads.
+runs inside a real Codex session — actual tool calls trigger actual hook
+dispatch on the projected runtime surface. No synthetic payloads.
 
 Use this when:
 - Hooks were recently updated and you want a live sanity check
@@ -92,7 +92,7 @@ HOOK HEALTH: FAIL
 Failing checks:
 - hook-timing.jsonl did not grow: PostToolUse hooks may not be firing
   → Verify hooks are installed: node scripts/verify-hooks.js
-  → Check settings.json: cat .claude/settings.json | grep PostToolUse
+  → Check hook projection: cat .codex/hooks.json | grep PostToolUse
 
 - audit.jsonl did not grow: governance hook may not be firing
   → Check: node hooks_src/governance.js <<< '{}'
@@ -103,8 +103,9 @@ Failing checks:
 **No .planning/telemetry/ directory**: Init-project may not have run.
 Output: "HOOK HEALTH: FAIL — .planning/telemetry/ not found. Run: node hooks_src/init-project.js"
 
-**Hooks installed but telemetry still zero**: The project may have a harness.json
-that disables telemetry. Check `features.telemetry` in .claude/harness.json.
+**Hooks installed but telemetry still zero**: The project may have config
+that disables telemetry. Check `features.telemetry` in `.codex/config.toml`
+(legacy fallback: `.claude/harness.json`).
 
 **First-time run (no baseline)**: If the files don't exist before the test,
 they should be created during the test. Treat "file created" as equivalent to "grew".

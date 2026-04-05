@@ -19,9 +19,10 @@ const {
   formatCompressionReport,
   formatHookReport,
 } = require('../core/telemetry/report');
+const { resolveProjectRoot } = require('../core/project-paths');
 const { readTokenEconomics } = require('./telemetry-stats.js');
 
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const PROJECT_ROOT = resolveProjectRoot();
 
 function agentReport(limit) {
   process.stdout.write(formatAgentReport(buildAgentReport(PROJECT_ROOT, { limit })));

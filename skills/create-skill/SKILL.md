@@ -240,10 +240,10 @@ verify the work and take next steps.}
    c. Update `registeredSkillCount` to match the array length
    d. This ensures `/do` routes to the new skill immediately without waiting for `/do setup`
 
-If the project has a CLAUDE.md that lists skills or references a skill
+If the project has an AGENTS.md that lists skills or references a skill
 directory, check whether the new skill should be mentioned there. Do not
-add it automatically — only mention it if CLAUDE.md has an explicit skills
-section that lists available skills.
+add it automatically. Only mention legacy CLAUDE.md if the project has not
+migrated and that file has an explicit skills section that lists available skills.
 
 ### Step 5: VERIFY — Test on a Real Target
 

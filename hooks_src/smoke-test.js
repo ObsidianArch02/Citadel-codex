@@ -9,7 +9,7 @@
  * Tests:
  *   1. Every hook file referenced in hooks.json exists and parses (require())
  *   2. hooks.json is valid JSON with expected structure
- *   3. Hook commands use relative paths (not $CLAUDE_PROJECT_DIR)
+ *   3. Hook commands do not rely on runtime-specific project-root placeholders
  *   4. All hook utility imports resolve
  *   5. No platform-specific assumptions that would break cross-platform
  *
@@ -76,12 +76,12 @@ function main() {
     process.exit(1);
   }
 
-  // ── 2. No $CLAUDE_PROJECT_DIR in commands ──
+  // ── 2. No runtime-specific project-root placeholders in commands ──
 
-  check('no $CLAUDE_PROJECT_DIR in hook commands', () => {
+  check('no project-root env placeholders in hook commands', () => {
     const raw = fs.readFileSync(SETTINGS_PATH, 'utf8');
-    if (raw.includes('$CLAUDE_PROJECT_DIR')) {
-      return '$CLAUDE_PROJECT_DIR found — this breaks on Windows. Use relative paths instead.';
+    if (raw.includes('$CLAUDE_PROJECT_DIR') || raw.includes('$CITADEL_PROJECT_DIR')) {
+      return 'Project-root env placeholder found — use runtime root placeholders or relative hook paths instead.';
     }
     return true;
   });
@@ -103,8 +103,8 @@ function main() {
 
   const hookFiles = new Set();
   for (const { event, command } of hookCommands) {
-    // Extract the JS file path from commands like "node '${CLAUDE_PLUGIN_ROOT}/hooks_src/foo.js'"
-    let commandPath = command.replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, PLUGIN_ROOT);
+    // Extract the JS file path from commands like "node '${CITADEL_RUNTIME_ROOT}/hooks_src/foo.js'"
+    let commandPath = command.replace(/\$\{CITADEL_RUNTIME_ROOT\}/g, PLUGIN_ROOT);
     commandPath = commandPath.replace(/'/g, '');
     const match = commandPath.match(/node\s+(.+\.js)/);
     if (match) {
@@ -198,8 +198,8 @@ function main() {
   console.log('Other test commands:');
   console.log('  node scripts/skill-lint.js          lint all SKILL.md files');
   console.log('  node scripts/skill-bench.js         validate benchmark scenarios');
-  console.log('  node scripts/skill-bench.js --execute  run scenarios against claude');
-  console.log('  node scripts/test-all.js            hooks + skills (fast, no claude)');
+  console.log('  node scripts/skill-bench.js --execute  run extended benchmark scenarios');
+  console.log('  node scripts/test-all.js            hooks + skills (fast suite)');
   console.log('');
   process.exit(0);
 }

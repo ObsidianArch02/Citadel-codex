@@ -104,7 +104,7 @@ function main() {
 
 /**
  * Dispatch table: maps file extensions to the lenses that should run.
- * Each lens is a lightweight check. The table is read from harness.json
+ * Each lens is a lightweight check. The table is read from the runtime config
  * verification.hot if configured, otherwise uses these defaults.
  */
 const DEFAULT_HOT_LENSES = {
@@ -169,7 +169,7 @@ function runHotLens(lens, filePath, relativePath) {
 
 /**
  * Checks import layer boundaries for projects with layer architecture.
- * Only fires if the project has a layer config in harness.json or uses
+ * Only fires if the project has a layer config in runtime config or uses
  * common alias patterns (@kernel, @os, @domains).
  */
 function structuralLint(filePath, relativePath) {

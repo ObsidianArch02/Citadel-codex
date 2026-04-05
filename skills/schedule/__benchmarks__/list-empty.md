@@ -17,11 +17,11 @@ assert-not-contains:
 
 A user runs `/schedule list` when they haven't created any schedules yet.
 The skill must output the "no schedules" message from the spec — not an
-empty output, not a crash from CronList returning nothing.
+empty output, not a crash when no schedule inventory exists.
 
 ## Expected Behavior
 
-1. Calls CronList (or handles gracefully if it returns empty)
+1. Inspects the available schedule inventory source, or handles the absence gracefully
 2. Outputs a clear "No active schedules" message
 3. Suggests how to create one: `/schedule add`
 4. No errors or empty output

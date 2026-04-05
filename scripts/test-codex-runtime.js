@@ -35,8 +35,20 @@ const tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), 'citadel-codex-runtime-
 try {
   const skills = codexRuntime.projectCodexSkills({ projectRoot: tmpProject, skillName: 'review', dryRun: true });
   const agents = codexRuntime.projectCodexAgents({ projectRoot: tmpProject, agentName: 'archon', dryRun: true });
+  const hooksTemplate = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', 'hooks', 'hooks-template.json'), 'utf8')
+  );
+  const installResult = codexRuntime.installCodexHooks({
+    hooksTemplate,
+    adapterScriptPath: path.join(__dirname, '..', 'hooks_src', 'codex-adapter.js'),
+    existingHooks: {},
+  });
+
   assert.equal(skills.length, 1, 'Codex runtime should dry-run one projected skill');
   assert.equal(agents.length, 1, 'Codex runtime should dry-run one projected agent');
+  assert(installResult.supportSummary.fullySupportedCount > 0, 'Codex hook installer should report fully supported hooks');
+  assert(installResult.supportSummary.degradedCount > 0, 'Codex hook installer should report degraded hooks');
+  assert(installResult.supportSummary.unsupportedCount > 0, 'Codex hook installer should report unsupported hooks');
 } finally {
   fs.rmSync(tmpProject, { recursive: true, force: true });
 }

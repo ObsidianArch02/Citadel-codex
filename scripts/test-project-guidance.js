@@ -6,7 +6,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseProjectSpec, validateProjectSpec } = require(path.join(__dirname, '..', 'core', 'project', 'load-project-spec'));
-const { CLAUDE_GUIDANCE_TARGET, renderClaudeGuidance } = require(path.join(__dirname, '..', 'runtimes', 'claude-code', 'guidance', 'render'));
 const { CODEX_GUIDANCE_TARGET, renderCodexGuidance } = require(path.join(__dirname, '..', 'runtimes', 'codex', 'guidance', 'render'));
 
 function fail(message) {
@@ -23,15 +22,8 @@ function main() {
     fail(`Project template is invalid: ${errors.join('; ')}`);
   }
 
-  const claude = renderClaudeGuidance(spec);
   const codex = renderCodexGuidance(spec);
 
-  if (!claude.includes('# Claude Harness')) {
-    fail('Claude guidance renderer must emit the Claude Harness heading');
-  }
-  if (CLAUDE_GUIDANCE_TARGET.filePath !== 'CLAUDE.md') {
-    fail('Claude runtime guidance target must point to CLAUDE.md');
-  }
   if (!codex.includes('## Citadel Project Guidance')) {
     fail('Codex guidance renderer must emit the Citadel Project Guidance section');
   }

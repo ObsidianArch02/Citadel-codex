@@ -47,7 +47,7 @@ Do NOT use Fleet for:
 
 ### Step 1: WAKE UP
 
-1. Read CLAUDE.md (project conventions)
+1. Read `AGENTS.md` (project conventions; fallback to legacy `CLAUDE.md` only if present)
 2. Check `.planning/campaigns/` for active campaigns
 3. Check `.planning/coordination/claims/` for external claims
 4. Determine input mode: directed, spec-driven, continuing, or undirected
@@ -81,8 +81,8 @@ Produce a ranked list of campaigns with:
 For each wave:
 
 1. **Prepare context** for each agent:
-   - CLAUDE.md content
-   - `.claude/agent-context/rules-summary.md`
+   - `AGENTS.md` content
+   - projected rules summary artifact
    - **Map slice** (if `.planning/map/index.json` exists): run
      `node scripts/map-index.js --query "<agent's scope keywords>" --max-files 15`
      and inject the results as a `=== MAP SLICE ===` block. If the index does
@@ -242,7 +242,7 @@ execution time limits at the orchestrator level.
 | Research scouts | 15 minutes | `agentTimeouts.research` |
 | Build agents | 30 minutes | `agentTimeouts.build` |
 
-Timeouts are configurable in `harness.json`:
+Timeouts are configurable in `.codex/config.toml` (legacy fallback: `.claude/harness.json`):
 ```json
 {
   "agentTimeouts": {
@@ -278,7 +278,7 @@ exceeds its timeout:
 ### Reading Timeouts from Config
 
 ```javascript
-const config = JSON.parse(fs.readFileSync('.claude/harness.json', 'utf8'));
+const config = loadRuntimeConfigFromCodexOrLegacy();
 const timeouts = config.agentTimeouts || {};
 const skillTimeout = timeouts.skill || 600000;    // 10 min default
 const researchTimeout = timeouts.research || 900000; // 15 min default

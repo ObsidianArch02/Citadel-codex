@@ -26,7 +26,7 @@ This is the first-run experience for Fleet on any new project.
 
 ## Expected Behavior
 
-1. Fleet reads CLAUDE.md and checks for active campaigns
+1. Fleet reads AGENTS.md and checks for active campaigns
 2. Decomposes "build the auth module in parallel" into independent streams
 3. Creates `.planning/fleet/` if it does not exist before writing the session file
 4. Writes the session file and logs session start

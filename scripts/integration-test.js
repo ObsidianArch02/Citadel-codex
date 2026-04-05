@@ -8,8 +8,8 @@
  *
  *   PreToolUse hooks → tool execution → PostToolUse hooks
  *
- * Reads the installed settings.json to dispatch hooks exactly as Claude Code
- * would, then asserts on side effects (telemetry, audit log, block behavior).
+ * Reads the installed `.codex/hooks.json` projection to dispatch hooks exactly as
+ * the Codex adapter would, then asserts on side effects.
  * No LLM needed.
  *
  * Usage:
@@ -38,7 +38,7 @@ const WRITE_REPORT = process.argv.includes('--report');
 
 function makeSandbox() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'citadel-integ-'));
-  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(dir, '.codex'), { recursive: true });
 
   // Install hooks into sandbox
   const install = spawnSync('node', [path.join(CITADEL_ROOT, 'scripts', 'install-hooks.js'), dir], {
@@ -66,8 +66,8 @@ function fireHookScript(scriptName, payload, sandbox, extraEnv = {}) {
     cwd: sandbox,
     env: {
       ...process.env,
-      CLAUDE_PROJECT_DIR: sandbox,
-      CLAUDE_PLUGIN_DATA: path.join(sandbox, '.claude'),
+      CITADEL_PROJECT_DIR: sandbox,
+      CITADEL_PLUGIN_DATA: path.join(sandbox, '.codex'),
       ...extraEnv,
     },
     encoding: 'utf8',
@@ -81,7 +81,7 @@ function fireHookScript(scriptName, payload, sandbox, extraEnv = {}) {
 }
 
 function getHooksForEvent(sandbox, event, toolName) {
-  const settingsPath = path.join(sandbox, '.claude', 'settings.json');
+  const settingsPath = path.join(sandbox, '.codex', 'hooks.json');
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   const entries = (settings.hooks || {})[event] || [];
   const matched = [];
@@ -93,12 +93,50 @@ function getHooksForEvent(sandbox, event, toolName) {
     }
     for (const hook of (entry.hooks || [])) {
       if (!hook.command) continue;
-      const m = hook.command.match(/node\s+"?([^"\s]+\.js)"?/);
-      if (m) matched.push(m[1]);
+      matched.push(hook.command);
     }
   }
 
   return matched;
+}
+
+function parseNodeCommand(command) {
+  const match = command.match(/^node\s+"?([^"\s]+\.js)"?\s*(.*)$/);
+  if (!match) return null;
+  const trailing = match[2] ? match[2].trim().split(/\s+/).filter(Boolean) : [];
+  return {
+    scriptPath: match[1],
+    args: trailing,
+  };
+}
+
+function runHookCommand(command, payload, sandbox) {
+  const parsed = parseNodeCommand(command);
+  if (!parsed) {
+    return {
+      exitCode: -1,
+      stdout: '',
+      stderr: `Unsupported hook command: ${command}`,
+    };
+  }
+
+  const result = spawnSync('node', [parsed.scriptPath, ...parsed.args], {
+    input: JSON.stringify(payload),
+    cwd: sandbox,
+    env: {
+      ...process.env,
+      CITADEL_PROJECT_DIR: sandbox,
+      CITADEL_PLUGIN_DATA: path.join(sandbox, '.codex'),
+    },
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+
+  return {
+    exitCode: result.status ?? -1,
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+  };
 }
 
 /**
@@ -106,18 +144,10 @@ function getHooksForEvent(sandbox, event, toolName) {
  * Returns { blocked, blockMessage, script } — first exit-2 stops dispatch.
  */
 function preToolUse(sandbox, toolName, toolInput) {
-  const scripts = getHooksForEvent(sandbox, 'PreToolUse', toolName);
-  for (const scriptPath of scripts) {
-    const r = spawnSync('node', [scriptPath], {
-      input: JSON.stringify({ tool_name: toolName, tool_input: toolInput }),
-      cwd: sandbox,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: sandbox, CLAUDE_PLUGIN_DATA: path.join(sandbox, '.claude') },
-      encoding: 'utf8',
-      timeout: 10000,
-    });
-    if ((r.status ?? -1) === 2) {
-      return { blocked: true, blockMessage: r.stdout || '', script: path.basename(scriptPath) };
-    }
+  const commands = getHooksForEvent(sandbox, 'PreToolUse', toolName);
+  for (const command of commands) {
+    const r = runHookCommand(command, { hook_event_name: 'PreToolUse', tool_name: toolName, tool_input: toolInput }, sandbox);
+    if (r.exitCode === 2) return { blocked: true, blockMessage: r.stdout || '', script: command };
   }
   return { blocked: false };
 }
@@ -126,15 +156,13 @@ function preToolUse(sandbox, toolName, toolInput) {
  * Dispatch all PostToolUse hooks for a tool.
  */
 function postToolUse(sandbox, toolName, toolInput, toolResult) {
-  const scripts = getHooksForEvent(sandbox, 'PostToolUse', toolName);
-  for (const scriptPath of scripts) {
-    spawnSync('node', [scriptPath], {
-      input: JSON.stringify({ tool_name: toolName, tool_input: toolInput, tool_result: toolResult }),
-      cwd: sandbox,
-      env: { ...process.env, CLAUDE_PROJECT_DIR: sandbox, CLAUDE_PLUGIN_DATA: path.join(sandbox, '.claude') },
-      encoding: 'utf8',
-      timeout: 30000,
-    });
+  const commands = getHooksForEvent(sandbox, 'PostToolUse', toolName);
+  for (const command of commands) {
+    runHookCommand(
+      command,
+      { hook_event_name: 'PostToolUse', tool_name: toolName, tool_input: toolInput, tool_result: toolResult },
+      sandbox
+    );
   }
 }
 
@@ -277,8 +305,8 @@ sequence('Edit allowed file: hook-timing.jsonl grows after PostToolUse', (sb) =>
 
 console.log('\n── Protected file enforcement ──');
 
-sequence('Edit .claude/harness.json: blocked by protect-files (exit 2)', (sb) => {
-  const filePath = path.join(sb, '.claude', 'harness.json');
+sequence('Edit .codex/config.toml: blocked by protect-files (exit 2)', (sb) => {
+  const filePath = path.join(sb, '.codex', 'config.toml');
   const auditBefore = countJsonlLines(sb, '.planning/telemetry/audit.jsonl');
   const pre = preToolUse(sb, 'Edit', { file_path: filePath });
   if (!pre.blocked) return 'expected block, got allowed';
@@ -304,9 +332,8 @@ sequence('Edit .env.local: blocked by protect-files', (sb) => {
   if (!pre.blocked) return 'expected .env.local read to be blocked';
 }, sandbox);
 
-sequence('Edit normal file in .claude/: not blocked', (sb) => {
-  // .claude/settings.json is not in protectedFiles — only harness.json
-  const filePath = path.join(sb, '.claude', 'notes.md');
+sequence('Edit normal file in .codex/: not blocked', (sb) => {
+  const filePath = path.join(sb, '.codex', 'notes.md');
   const pre = preToolUse(sb, 'Edit', { file_path: filePath });
   if (pre.blocked) return `unexpected block: ${pre.blockMessage}`;
 }, sandbox);
@@ -330,7 +357,7 @@ sequence('Edit out-of-scope file: warns but does not block', (sb) => {
   const r = spawnSync('node', [path.join(HOOKS_SRC, 'protect-files.js')], {
     input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: filePath } }),
     cwd: sb,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: sb, CLAUDE_PLUGIN_DATA: path.join(sb, '.claude') },
+    env: { ...process.env, CITADEL_PROJECT_DIR: sb, CITADEL_PLUGIN_DATA: path.join(sb, '.codex') },
     encoding: 'utf8', timeout: 10000,
   });
   fs.rmSync(campaignFile);
@@ -379,7 +406,7 @@ sequence('PostToolUseFailure: circuit-breaker state file written', (sb) => {
     sb
   );
   if (r.exitCode !== 0) return `exit ${r.exitCode}: ${r.stderr}`;
-  const stateFile = path.join(sb, '.claude', 'circuit-breaker-state.json');
+  const stateFile = path.join(sb, '.codex', 'circuit-breaker-state.json');
   if (!fs.existsSync(stateFile)) return 'circuit-breaker-state.json not created';
 }, sandbox);
 
@@ -488,10 +515,11 @@ sequence('Campaign archive: move to completed/ directory', (sb) => {
   if (fm.status !== 'completed') return `expected archived frontmatter status === 'completed', got: ${fm.status}`;
 }, sandbox);
 
-sequence('protect-files glob: src/** blocks recursive match, non-matching path allowed', (sb) => {
-  // Write a harness.json with src/** as a protected pattern
+sequence('protect-files legacy fallback: src/** blocks recursive match, non-matching path allowed', (sb) => {
+  // Write a legacy harness.json to verify fallback compatibility.
   const harnessPath = path.join(sb, '.claude', 'harness.json');
   const config = { protectedFiles: ['.claude/harness.json', 'src/**'] };
+  fs.mkdirSync(path.dirname(harnessPath), { recursive: true });
   fs.writeFileSync(harnessPath, JSON.stringify(config, null, 2));
 
   // Create the deeply nested file so its directory exists

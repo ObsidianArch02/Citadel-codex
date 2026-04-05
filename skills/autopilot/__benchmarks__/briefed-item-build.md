@@ -26,7 +26,7 @@ the output, and mark the item as completed. This is the core happy-path flow.
 ## Expected Behavior
 
 1. Autopilot scans and finds the briefed item
-2. Reads CLAUDE.md for project conventions
+2. Reads AGENTS.md for project conventions
 3. Executes the approach described in the brief
 4. Marks the item as `completed` after verification
 5. Outputs a summary showing the item moved from briefed to completed

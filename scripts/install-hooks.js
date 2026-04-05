@@ -1,91 +1,78 @@
 #!/usr/bin/env node
 
 /**
- * install-hooks.js — Resolves Citadel hook paths into a project's .claude/settings.json
- *
- * Why this exists:
- *   ${CLAUDE_PLUGIN_ROOT} in hooks.json doesn't expand in hook commands
- *   (anthropics/claude-code#24529). This script resolves the variable to an
- *   absolute path and writes working hooks into the project's settings.json.
+ * install-hooks.js — Translate Citadel hook templates into Codex hooks.json.
  *
  * Usage:
- *   node /path/to/Citadel/scripts/install-hooks.js                            # from project dir
- *   node /path/to/Citadel/scripts/install-hooks.js /project                   # explicit project path
- *   node /path/to/Citadel/scripts/install-hooks.js --hook-profile latest      # force full hook set
- *   node /path/to/Citadel/scripts/install-hooks.js --claude-version 2.1.75    # test compatibility mode
+ *   node /path/to/Citadel/scripts/install-hooks.js
+ *   node /path/to/Citadel/scripts/install-hooks.js /project
+ *   node /path/to/Citadel/scripts/install-hooks.js --json
  */
 
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
-const { installClaudeHooks } = require('../runtimes/claude-code/generators/install-hooks');
+const { installCodexHooks } = require('../runtimes/codex/generators/install-hooks');
 
 const CITADEL_ROOT = path.resolve(__dirname, '..');
 
 function parseArgs(argv) {
-  const args = argv.slice(2);
-  const options = {
-    projectRoot: process.env.CLAUDE_PROJECT_DIR || process.cwd(),
-    hookProfile: process.env.CITADEL_CLAUDE_HOOK_PROFILE || 'auto',
-    claudeVersion: process.env.CITADEL_CLAUDE_VERSION || null,
+  const positional = argv.filter((arg) => !arg.startsWith('--'));
+  return {
+    projectRoot: positional[0]
+      ? path.resolve(positional[0])
+      : (process.env.CITADEL_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd()),
+    json: argv.includes('--json'),
   };
-
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index];
-
-    if (arg === '--hook-profile' && args[index + 1]) {
-      options.hookProfile = args[++index];
-      continue;
-    }
-
-    if (arg.startsWith('--hook-profile=')) {
-      options.hookProfile = arg.split('=')[1];
-      continue;
-    }
-
-    if (arg === '--claude-version' && args[index + 1]) {
-      options.claudeVersion = args[++index];
-      continue;
-    }
-
-    if (arg.startsWith('--claude-version=')) {
-      options.claudeVersion = arg.split('=')[1];
-      continue;
-    }
-
-    if (!arg.startsWith('--') && options.projectRoot === (process.env.CLAUDE_PROJECT_DIR || process.cwd())) {
-      options.projectRoot = arg;
-    }
-  }
-
-  return options;
 }
 
 function main() {
   try {
-    const options = parseArgs(process.argv);
-    const result = installClaudeHooks({
-      citadelRoot: CITADEL_ROOT,
-      projectRoot: options.projectRoot,
-      hookProfile: options.hookProfile,
-      claudeVersion: options.claudeVersion,
+    const options = parseArgs(process.argv.slice(2));
+    const hooksTemplatePath = path.join(CITADEL_ROOT, 'hooks', 'hooks-template.json');
+    const hooksTemplate = JSON.parse(fs.readFileSync(hooksTemplatePath, 'utf8'));
+    const adapterScriptPath = path.join(CITADEL_ROOT, 'hooks_src', 'codex-adapter.js');
+    const outputPath = path.join(options.projectRoot, '.codex', 'hooks.json');
+    const existingHooks = fs.existsSync(outputPath)
+      ? (JSON.parse(fs.readFileSync(outputPath, 'utf8')).hooks || {})
+      : {};
+
+    const result = installCodexHooks({
+      hooksTemplate,
+      adapterScriptPath,
+      existingHooks,
+      outputPath,
     });
-    console.log(`Citadel hooks installed to ${result.settingsPath}`);
-    console.log(`  ${result.hookCount} Citadel hooks resolved (${result.citadelRoot})`);
-    if (result.preservedCount > 0) {
-      console.log(`  ${result.preservedCount} existing user hooks preserved`);
+
+    if (options.json) {
+      console.log(JSON.stringify({
+        outputPath,
+        installed: result.installed.length,
+        skipped: result.skipped.length,
+        supportSummary: result.supportSummary,
+        warnings: result.warnings,
+      }, null, 2));
+      return;
     }
-    if (result.compatibility?.reason) {
-      console.log(`  Hook compatibility: ${result.compatibility.reason}`);
+
+    console.log(`Citadel Codex hooks installed to ${outputPath}`);
+    console.log(`  ${result.installed.length} Citadel hooks translated for Codex`);
+    if (result.skipped.length > 0) {
+      console.log(`  ${result.skipped.length} hook mappings skipped due to missing Codex lifecycle equivalents`);
     }
-    if (result.compatibility?.skippedEvents?.length) {
-      console.log(`  Skipped unsupported hook events: ${result.compatibility.skippedEvents.join(', ')}`);
-      console.log('  Re-run with --hook-profile latest after upgrading Claude Code to enable them.');
+    console.log(
+      `  Support matrix: ${result.supportSummary.fullySupportedCount} fully supported, ` +
+      `${result.supportSummary.degradedCount} degraded, ${result.supportSummary.unsupportedCount} unsupported`
+    );
+    if (result.supportSummary.degradedHooks.length > 0) {
+      console.log(`  Degraded hooks: ${result.supportSummary.degradedHooks.join(', ')}`);
     }
-    console.log('Hooks are ready. No restart needed.');
+    if (result.supportSummary.unsupportedHooks.length > 0) {
+      console.log(`  Unsupported hooks: ${result.supportSummary.unsupportedHooks.join(', ')}`);
+    }
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    console.error('Is this script inside a Citadel installation?');
     process.exit(1);
   }
 }

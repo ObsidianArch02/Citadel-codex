@@ -166,14 +166,14 @@ For each issue, classify along these dimensions:
 | `low` | Cosmetic, edge case, or has an easy workaround |
 
 **Affected Component** — map to project area:
-- Citadel hooks — hook system (managed by plugin)
-- Citadel skills — skill system (built-in from plugin)
-- `.claude/skills/` — custom project skills
-- Citadel agents — agent system (managed by plugin)
-- `.claude/harness.json` — project configuration
+- Citadel hooks — hook system (projected to `.codex/hooks.json`)
+- Citadel skills — built-in skill system
+- `.agents/skills/` — projected project skills
+- Citadel agents — projected agent system
+- `.codex/config.toml` — project configuration
 - `.planning/` — planning/campaign system
 - `docs/` — documentation
-- Root files — project setup (README, package.json, CLAUDE.md)
+- Root files — project setup (README, package.json, `AGENTS.md`)
 
 Record classification in a structured block before proceeding.
 
@@ -185,7 +185,7 @@ This is the core phase. Investigate like a senior engineer, not a keyword matche
 
 Extract from the issue body:
 - **Error messages** — exact text, stack traces, error codes
-- **Environment** — OS, shell, Node version, Claude Code version
+- **Environment** — OS, shell, Node version, Codex version
 - **Reproduction steps** — what the user did
 - **Expected vs actual behavior**
 - **Workaround** — did the user already find one?
@@ -336,8 +336,7 @@ PR #<N>: <url>
 
 To watch this PR automatically:
   Local  →  /pr-watch <N>          watches CI, fixes failures, runs in this terminal
-  Cloud  →  open in Claude Code web or mobile, toggle "Auto fix" ON
-            (fixes CI failures and review comments remotely; requires Claude GitHub App)
+  Cloud  →  unavailable in Codex-first local flow (treat cloud auto-fix as legacy Claude-only path)
 ---
 ```
 

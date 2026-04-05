@@ -12,7 +12,7 @@
  *   SOFT    - Governed by consent preference. Reversible by default (push, PR
  *             create, comment). Configurable via policy.externalActions.soft.
  *
- * Policy overrides (harness.json):
+ * Policy overrides (runtime config):
  *   policy.externalActions.protectedBranches - branches that can never be deleted
  *   policy.externalActions.hard  - labels that are always per-action confirmed
  *   policy.externalActions.soft  - labels governed by consent preference
@@ -96,7 +96,7 @@ function run(input) {
       'external-action-gate',
       'blocked',
       `[external-action-gate] Blocked: "${action.branch}" is a protected branch and cannot be deleted. ` +
-      `This is configured in harness.json under policy.externalActions.protectedBranches.`,
+      `This is configured in runtime config under policy.externalActions.protectedBranches.`,
       { label: action.label, tier: action.tier }
     );
     process.exit(2);
@@ -131,7 +131,7 @@ function run(input) {
       `  2. "session-allow" - Allow for this session, ask again next session\n` +
       `  3. "auto-allow"    - I trust the agent, don't ask again\n\n` +
       `Tell the user these three options and ask which they prefer.\n` +
-      `Then write their choice to harness.json:\n` +
+      `Then write their choice to Citadel mutable state:\n` +
       `  node -e "require('./hooks_src/harness-health-util').writeConsent('externalActions', '<choice>')"` +
       `\nFor "session-allow", also run:\n` +
       `  node -e "require('./hooks_src/harness-health-util').grantSessionAllow('externalActions')"` +

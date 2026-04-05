@@ -13,9 +13,9 @@
  *   - adversarial: XSS vectors, unsafe patterns in source files
  *   - contractual: skill files match required structure
  *   - cross-reference: docs match code (function signatures vs documentation)
- *   - custom: user-defined regex rules via harness.json
+ *   - custom: user-defined regex rules via runtime config
  *
- * Users can configure via harness.json verification.cold and qualityRules.custom.
+ * Users can configure via runtime config verification.cold and qualityRules.custom.
  */
 
 const fs = require('fs');

@@ -4,8 +4,8 @@
  * verify-hooks.js — Hook install + runtime verification
  *
  * Creates a clean sandbox project, installs Citadel hooks into it, then fires
- * synthetic event payloads at each hook script directly (no Claude Code runtime
- * needed — hooks are just scripts that receive JSON on stdin).
+ * synthetic event payloads at each hook script directly. The install target is
+ * the Codex runtime projection in `.codex/hooks.json`.
  *
  * Usage:
  *   node scripts/verify-hooks.js             # run all tests
@@ -17,7 +17,7 @@
  *   1 = one or more tests failed
  *
  * Three phases:
- *   Phase 1: Install — run install-hooks.js, verify settings.json structure
+ *   Phase 1: Install — run install-hooks.js, verify hooks.json structure
  *   Phase 2: Init   — fire init-project.js, verify .planning/ scaffolding
  *   Phase 3: Runtime — fire each hook with synthetic payload, assert side effects
  */
@@ -38,7 +38,7 @@ const WRITE_REPORT  = process.argv.includes('--report');
 
 function sandbox() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'citadel-verify-'));
-  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(dir, '.codex'), { recursive: true });
   return dir;
 }
 
@@ -59,8 +59,8 @@ function fireHook(hookName, payload, sandboxDir, extraEnv = {}) {
     cwd: sandboxDir,
     env: {
       ...process.env,
-      CLAUDE_PROJECT_DIR: sandboxDir,
-      CLAUDE_PLUGIN_DATA: path.join(sandboxDir, '.claude'),
+      CITADEL_PROJECT_DIR: sandboxDir,
+      CITADEL_PLUGIN_DATA: path.join(sandboxDir, '.codex'),
       ...extraEnv,
     },
     encoding: 'utf8',
@@ -130,36 +130,30 @@ test('install-hooks.js exits 0', () => {
   if (r.status !== 0) return `exit ${r.status}: ${r.stderr.slice(0, 200)}`;
 });
 
-test('settings.json created', () => {
-  if (!fileExists(installDir, '.claude/settings.json'))
-    return '.claude/settings.json not found after install';
+test('hooks.json created', () => {
+  if (!fileExists(installDir, '.codex/hooks.json'))
+    return '.codex/hooks.json not found after install';
 });
 
-test('settings.json is valid JSON', () => {
+test('hooks.json is valid JSON', () => {
   try {
-    const raw = fs.readFileSync(path.join(installDir, '.claude/settings.json'), 'utf8');
+    const raw = fs.readFileSync(path.join(installDir, '.codex/hooks.json'), 'utf8');
     JSON.parse(raw);
   } catch (e) {
     return `invalid JSON: ${e.message}`;
   }
 });
 
-test('all expected hook events registered', () => {
-  const settings = JSON.parse(fs.readFileSync(path.join(installDir, '.claude/settings.json'), 'utf8'));
+test('Codex-supported hook events registered', () => {
+  const settings = JSON.parse(fs.readFileSync(path.join(installDir, '.codex/hooks.json'), 'utf8'));
   const registered = Object.keys(settings.hooks || {});
-  const expected = [
-    'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
-    'PreCompact', 'PostCompact', 'Stop', 'StopFailure',
-    'SessionStart', 'SessionEnd',
-    'SubagentStop', 'TaskCreated', 'TaskCompleted',
-    'WorktreeCreate', 'WorktreeRemove',
-  ];
+  const expected = ['PreToolUse', 'PostToolUse', 'SessionStart', 'Stop'];
   const missing = expected.filter(e => !registered.includes(e));
   if (missing.length) return `missing events: ${missing.join(', ')}`;
 });
 
 test('hook commands reference real files', () => {
-  const settings = JSON.parse(fs.readFileSync(path.join(installDir, '.claude/settings.json'), 'utf8'));
+  const settings = JSON.parse(fs.readFileSync(path.join(installDir, '.codex/hooks.json'), 'utf8'));
   const bad = [];
   for (const [event, entries] of Object.entries(settings.hooks || {})) {
     for (const entry of entries) {
@@ -176,10 +170,11 @@ test('hook commands reference real files', () => {
   if (bad.length) return `broken paths:\n  ${bad.join('\n  ')}`;
 });
 
-test('CLAUDE_CODE_SUBPROCESS_ENV_SCRUB injected', () => {
-  const settings = JSON.parse(fs.readFileSync(path.join(installDir, '.claude/settings.json'), 'utf8'));
-  if (settings.env?.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB !== '1')
-    return 'CLAUDE_CODE_SUBPROCESS_ENV_SCRUB missing from env';
+test('only Codex lifecycle events appear in hooks.json', () => {
+  const settings = JSON.parse(fs.readFileSync(path.join(installDir, '.codex/hooks.json'), 'utf8'));
+  const supported = new Set(['SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'Stop']);
+  const invalid = Object.keys(settings.hooks || {}).filter((event) => !supported.has(event));
+  if (invalid.length) return `unsupported events present: ${invalid.join(', ')}`;
 });
 
 cleanup(installDir);
@@ -245,10 +240,10 @@ const rDir = initDir;
 
 // ── protect-files.js ──
 
-test('protect-files: blocks edit to .claude/harness.json (exit 2)', () => {
+test('protect-files: blocks edit to .codex/config.toml (exit 2)', () => {
   const payload = {
     tool_name: 'Edit',
-    tool_input: { file_path: path.join(rDir, '.claude', 'harness.json') },
+    tool_input: { file_path: path.join(rDir, '.codex', 'config.toml') },
   };
   const r = fireHook('protect-files.js', payload, rDir);
   if (r.exitCode !== 2) return `expected exit 2, got ${r.exitCode}`;
@@ -368,7 +363,7 @@ test('circuit-breaker: state file written after failure', () => {
     rDir
   );
   if (r.exitCode !== 0) return `exit ${r.exitCode}`;
-  const stateFile = path.join(rDir, '.claude', 'circuit-breaker-state.json');
+  const stateFile = path.join(rDir, '.codex', 'circuit-breaker-state.json');
   if (!fs.existsSync(stateFile)) return 'circuit-breaker-state.json not created';
 });
 

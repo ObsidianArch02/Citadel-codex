@@ -2,11 +2,11 @@
 name: daemon
 description: >-
   Continuous autonomous operation mode. Keeps campaigns running 24/7 by
-  chaining Claude Code sessions via RemoteTrigger. Each session picks up
-  from the campaign's continuation state, works until context runs low or
-  the phase completes, then schedules the next session. Auto-stops on
-  campaign completion or budget exhaustion. The thing that makes Citadel
-  run overnight.
+  chaining Codex sessions through the SessionStart bridge and an external
+  scheduler when needed. Each session picks up from the campaign's
+  continuation state, works until context runs low or the phase completes,
+  then awaits the next scheduled session. Auto-stops on campaign completion
+  or budget exhaustion.
 user-invocable: true
 auto-trigger: false
 last-updated: 2026-03-28
@@ -86,50 +86,24 @@ Do NOT use `/daemon` for:
    - If yes: run `/daemon stop` first, then continue
    - If no: abort
 
-**Step 3: Create triggers**
+**Step 3: Choose continuation mechanism**
 
-The daemon uses two RemoteTrigger mechanisms:
+Default to the Codex-first local path:
 
-**A. Self-rescheduling chain (primary work loop):**
+- The SessionStart hook bridge is the primary continuation mechanism.
+- An external scheduler may start fresh Codex sessions at the desired cadence.
+- If no scheduler is configured, record daemon state only and tell the user the
+  daemon will resume on the next project session.
 
-The first tick is a one-shot RemoteTrigger that fires after the cooldown period.
-Each tick, after completing work, schedules the next tick. This gives tight
-restart cycles -- the next session starts as soon as the previous one finishes
-(plus cooldown), not on a fixed clock.
+Optional durable scheduler:
 
-Create the initial trigger:
+- Prefer a local scheduler such as cron、launchd、Task Scheduler, or a host-side
+  Codex automation if the environment explicitly supports it.
+- If the user is migrating an old Claude workflow, describe `RemoteTrigger` only
+  as a legacy path, not the default mechanism.
 
-```
-RemoteTrigger create:
-  body: {
-    "type": "scheduled",
-    "schedule": "{cooldown}s",
-    "command": "/daemon tick",
-    "project_path": "{absolute path to project root}",
-    "description": "Daemon: {campaign-slug} tick"
-  }
-```
-
-Save the returned trigger ID as `chainTriggerId` in daemon.json.
-
-**B. Watchdog (safety net):**
-
-A recurring trigger that fires every `--interval` (default 30m). It checks
-whether the chain is still alive. If the last tick completed more than
-2x the watchdog interval ago, the chain died -- the watchdog restarts it.
-
-```
-RemoteTrigger create:
-  body: {
-    "type": "recurring",
-    "schedule": "{interval}",
-    "command": "/daemon tick --watchdog",
-    "project_path": "{absolute path to project root}",
-    "description": "Daemon: {campaign-slug} watchdog"
-  }
-```
-
-Save the returned trigger ID as `watchdogTriggerId` in daemon.json.
+When a scheduler is configured, persist its identifiers or metadata in
+`chainTriggerId` and `watchdogTriggerId`. Otherwise store `null`.
 
 **Step 4: Write state file**
 
@@ -185,13 +159,8 @@ Use `/daemon stop` to halt.
 
 1. Read `.planning/daemon.json`. If it doesn't exist or status is not `"running"`:
    "No daemon is running."
-2. Delete both triggers:
-   ```
-   RemoteTrigger delete: chainTriggerId
-   RemoteTrigger delete: watchdogTriggerId
-   ```
-   If a trigger ID is missing or deletion fails, continue (it may have already
-   been cleaned up).
+2. If `chainTriggerId` or `watchdogTriggerId` identify a real external scheduler
+   resource, remove or disable it. If no scheduler metadata exists, continue.
 3. Update daemon.json:
    ```json
    {
@@ -262,8 +231,8 @@ Use `/daemon stop` to halt.
 
 ### /daemon tick
 
-**This is the heartbeat handler. It runs in a fresh Claude Code session spawned
-by RemoteTrigger. It is not user-facing.**
+**This is the heartbeat handler. It runs in a fresh Codex session started by the
+current continuation mechanism. It is not user-facing.**
 
 **Step 1: Gate checks**
 
@@ -279,7 +248,7 @@ by RemoteTrigger. It is not user-facing.**
    while a chain session is still working.)
 4. **Budget gate**: If `estimatedSpend >= budget` -- stop the daemon:
    - Update daemon.json: `status: "stopped"`, `stopReason: "budget-exhausted"`
-   - Delete both triggers (RemoteTrigger delete)
+   - Remove or disable any configured external scheduler
    - Log: `daemon-stop` with reason `budget-exhausted`
    - Exit.
 5. **Campaign gate**: Read the campaign file.
@@ -333,7 +302,7 @@ After `/do continue` returns (or the session is winding down):
    the campaign file no longer exists -- stop the daemon immediately:
    - Update daemon.json: `status: "stopped"`, `stopReason: "no-active-work"`,
      `stoppedAt: "{ISO timestamp}"`
-   - Delete both triggers (RemoteTrigger delete)
+   - Remove or disable any configured external scheduler
    - Log: `daemon-stop` with reason `no-active-work`
    - Do NOT schedule the next tick. Exit after recording the session.
 3. Update daemon.json:
@@ -352,22 +321,14 @@ After `/do continue` returns (or the session is winding down):
      }
      ```
 
-**Step 5: Schedule next tick (self-rescheduling chain)**
+**Step 5: Schedule next session**
 
 1. Re-read daemon.json (status may have changed if campaign completed during execution)
 2. If status is still `"running"` AND `estimatedSpend + costPerSession <= budget`:
-   - Create a new one-shot RemoteTrigger with the cooldown delay:
-     ```
-     RemoteTrigger create:
-       body: {
-         "type": "scheduled",
-         "schedule": "{cooldown}",
-         "command": "/daemon tick",
-         "project_path": "{project root}",
-         "description": "Daemon: {campaign-slug} tick #{sessionCount + 1}"
-       }
-     ```
-   - Update `chainTriggerId` in daemon.json with the new trigger ID
+   - If an external scheduler is configured, update or preserve its metadata so the
+     next Codex session starts after `{cooldown}`
+   - If no external scheduler is configured, leave the daemon armed and rely on the
+     next project session to resume through the SessionStart bridge
 3. If budget would be exceeded on next session:
    - Stop the daemon: `status: "stopped"`, `stopReason: "budget-exhausted"`
    - Delete watchdog trigger
@@ -399,23 +360,23 @@ operation, it fires, sees a recent tick, and exits immediately.
 
 ## SessionStart Hook Bridge (Primary Bootstrap)
 
-The daemon's primary continuation mechanism is the `init-project.js` SessionStart hook,
-not RemoteTrigger prompt injection. On every session start, the hook:
+The daemon's primary continuation mechanism is the `init-project.js` SessionStart hook.
+On every session start, the hook:
 
 1. Reads `.planning/daemon.json`
 2. If `status: running`: checks the lock (no overlap), budget (can afford), and campaign (still active)
 3. If all gates pass: outputs `[daemon] Active daemon detected. Campaign: {slug}. Run: /do continue`
 4. The agent sees this message first and executes `/do continue`
 
-**Why this is better than prompt injection:**
-- Works with ANY session start method (RemoteTrigger, CLI, cron, manual)
+**Why this is better than scheduler-specific prompt injection:**
+- Works with any session start method (Codex CLI, OS scheduler, manual restart, host automation)
 - Infrastructure enforces, rules advise -- the hook doesn't care how the session started
-- Survives API changes -- no dependency on undocumented RemoteTrigger fields
+- Survives scheduler changes -- daemon state remains the source of truth
 - Self-contained -- the daemon state IS the bootstrap mechanism
 
-**RemoteTrigger's role** is reduced to scheduling session starts (firing a blank session
-at intervals). The hook handles everything else. If RemoteTrigger is unavailable, an
-OS cron job or manual restart achieves the same result.
+**Legacy scheduler note:** Claude-only `RemoteTrigger` is compatibility context,
+not the default path. The hook handles continuation regardless of whether the
+session came from cron, Task Scheduler, a host automation, or a manual restart.
 
 ---
 
@@ -464,19 +425,18 @@ over `estimated_cost` when present. The `/dashboard` COSTS section shows the agg
 
 ## Fringe Cases
 
-**RemoteTrigger not available:**
-If RemoteTrigger is not available (plan doesn't support it, tool not loaded):
+**No external scheduler configured:**
 The daemon still works through the **SessionStart hook bridge**. The `init-project.js`
 hook checks `.planning/daemon.json` on every session start. If a daemon is running, it
-outputs `[daemon] Active daemon detected. Run: /do continue` -- and the agent acts on it.
-This means the daemon works with ANY session start mechanism:
-- `claude --plugin-dir ~/Citadel` (manual restart)
-- OS-level cron job: `claude -p '/do continue' --plugin-dir ~/Citadel`
-- RemoteTrigger (when prompt injection is supported)
-- CronCreate with `durable: true`
-Tell the user: "RemoteTrigger is unavailable. The daemon is active and will auto-continue
-when any new session starts in this project. For overnight operation, set up a cron job:
-`*/30 * * * * cd ~/your-project && claude -p '/do continue' --plugin-dir ~/Citadel`"
+outputs `[daemon] Active daemon detected. Run: /do continue` and the agent acts on it.
+This means the daemon can continue from:
+- a manual `codex` restart in the project
+- an OS-level scheduler that starts Codex in the project
+- a host-side Codex automation, if available
+
+Tell the user: "The daemon is active, but no durable scheduler is configured. It will
+resume automatically on the next Codex session in this project. For unattended runs,
+configure a local scheduler that launches Codex with this project."
 
 **`.planning/` does not exist:**
 "No planning directory. Run `/do setup` to initialize the harness for this project."

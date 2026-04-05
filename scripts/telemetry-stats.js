@@ -11,20 +11,17 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot } = require('../core/project-paths');
 const { readJsonlDetailed } = require('../core/telemetry/io');
 const { readCampaignStats: readCampaignStatsCore } = require('../core/campaigns/load-campaign');
 const { getCoordinationStatus } = require('../core/coordination/instances');
 const { getClaimStatus } = require('../core/coordination/claims');
 
-// Real token reader for enriched cost data
-let sessionTokens = null;
-try { sessionTokens = require('../runtimes/claude-code/adapters/session-tokens'); } catch { /* not available */ }
-
-const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const ROOT = resolveProjectRoot();
 const PLANNING_DIR = path.join(ROOT, '.planning');
 const TELEMETRY_DIR = path.join(PLANNING_DIR, 'telemetry');
 const FLEET_DIR = path.join(PLANNING_DIR, 'fleet');
-const SETTINGS_PATH = path.join(ROOT, '.claude', 'settings.json');
+const SETTINGS_PATH = path.join(ROOT, '.codex', 'hooks.json');
 
 // Token estimation constants
 const TOKENS_PER_TIER_RESOLUTION = 500;   // avg Tier 3 cost avoided per Tier 0-2 resolution
@@ -122,7 +119,6 @@ function readCoordinationStats() {
 
 // ── Cost observability ───────────────────────────────────────────────────────
 
-// Cost model constants (derived from Claude API pricing, Opus-class models)
 const BASE_SESSION_COST = 1.00;     // base overhead per session (context load, routing)
 const COST_PER_SUBAGENT = 0.50;     // per sub-agent spawn
 const COST_PER_MINUTE = 0.10;       // per minute of active agent time
@@ -188,7 +184,7 @@ function readCostByCampaign() {
 
 /**
  * Get total spend across all campaigns.
- * Uses real cost when available, falls back to estimated.
+ * Uses estimated cost from Citadel telemetry.
  * @returns {{ total: number, by_campaign: Object, session_count: number, has_real_data: boolean }}
  */
 function readTotalCost() {
@@ -225,42 +221,32 @@ function estimateSessionCost(agentCount, durationMinutes) {
 }
 
 /**
- * Read real token/cost data directly from Claude Code session JSONL files.
- * This bypasses the session-costs.jsonl intermediary and reads the source of truth.
- *
- * @param {object} [opts] - Options
- * @param {string} [opts.since] - ISO date string, only include sessions after this
- * @returns {{ sessions: object[], totals: object } | null} null if session-tokens.js not available
+ * Placeholder for future runtime-native cost adapters.
+ * Codex currently runs in estimated-only mode.
  */
 function readRealCostSummary(opts = {}) {
-  if (!sessionTokens) return null;
-  try {
-    return sessionTokens.readAllSessions(opts);
-  } catch { return null; }
+  void opts;
+  return null;
 }
 
 /**
- * Get a complete cost picture: Citadel telemetry + real Claude Code data.
- * Merges both sources, preferring real data. This is the primary read function
- * for dashboards and reports.
+ * Get the current cost dashboard from Citadel telemetry.
  *
  * @returns {{ total_cost: number, session_count: number, by_campaign: Object,
  *   real_total: number|null, real_sessions: number, data_source: string }}
  */
 function readCostDashboard() {
   const citadel = readTotalCost();
-  const real = readRealCostSummary();
-
   return {
-    total_cost: real ? real.totals.total_cost : citadel.total,
-    session_count: real ? real.totals.session_count : citadel.session_count,
+    total_cost: citadel.total,
+    session_count: citadel.session_count,
     by_campaign: citadel.by_campaign,
-    real_total: real ? real.totals.total_cost : null,
-    real_sessions: real ? real.totals.session_count : 0,
+    real_total: null,
+    real_sessions: 0,
     estimated_total: citadel.total,
-    data_source: real ? 'real+estimated' : 'estimated-only',
-    total_messages: real ? real.totals.messages : null,
-    total_subagents: real ? real.totals.subagent_count : null,
+    data_source: 'estimated-only',
+    total_messages: null,
+    total_subagents: null,
   };
 }
 
@@ -375,7 +361,7 @@ function readCitadelValueMetrics() {
   }
 
   // Estimate dollar savings from token savings (use dominant model pricing)
-  const pricing = sessionTokens ? sessionTokens.PRICING['claude-opus-4-6'] : { output: 75.00 };
+  const pricing = { output: 75.00 };
   const tokensSaved = economics.total_estimated_savings;
   const dollarsSaved = tokensSaved > 0
     ? Math.round((tokensSaved / 1_000_000) * pricing.output * 100) / 100

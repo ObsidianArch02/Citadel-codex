@@ -22,7 +22,7 @@ const { execFileSync } = require('child_process');
 
 // -- Constants ----------------------------------------------------------------
 
-const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const ROOT = process.env.CITADEL_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const PLANNING_DIR = path.join(ROOT, '.planning');
 const STATE_PATH = path.join(PLANNING_DIR, 'watch-state.json');
 const INTAKE_DIR = path.join(PLANNING_DIR, 'intake');

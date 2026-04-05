@@ -1,22 +1,22 @@
 ---
 name: schedule
 description: >-
-  Manages recurring and one-off scheduled tasks. Session-scoped scheduling via
-  CronCreate/CronDelete/CronList. Documents the cloud path for tasks that need
-  to survive machine sleep or network drops.
+  Plans recurring and one-off scheduled tasks for the Codex-first local flow.
+  Converts natural-language cadence into a concrete schedule, then routes the
+  user toward a supported execution surface such as Codex app automations or the
+  host OS scheduler.
 user-invocable: true
 auto-trigger: false
-last-updated: 2026-03-26
+last-updated: 2026-04-05
 ---
 
 # /schedule — Task Scheduling
 
 ## Identity
 
-You are the schedule manager. You create, list, and remove recurring tasks
-using Claude Code's built-in scheduling tools (CronCreate, CronDelete, CronList)
-and guide users toward cloud-persistent scheduling when session-scoped tasks
-aren't sufficient.
+You are the schedule manager. Your job is to turn a requested cadence into a
+clear, executable scheduling plan without claiming runtime features that the
+current Codex setup does not provide.
 
 ## When to Route Here
 
@@ -25,42 +25,45 @@ aren't sufficient.
 - "schedule a thing"
 - "remind me to run tests every 30 minutes"
 - "set up a recurring task"
-- "list my scheduled tasks"
-- "cancel the PR check"
+- "draft a cron entry for this"
 - Any mention of "schedule", "recurring", "every N minutes/hours", "cron"
 
 ## Protocol
 
-### /schedule list
+### /schedule plan "{description}" {/skill-or-command}
 
-List all currently scheduled tasks using CronList.
-
-Output format:
-```
-Active schedules (N):
-  [id] {description} — {cron expression} — next run: {time}
-
-No schedules active.
-```
-
-If CronList is not available: output a helpful error (see Fringe Cases).
-
----
-
-### /schedule add "{description}" {/skill-or-command}
-
-Create a recurring task.
+Create a concrete schedule plan.
 
 Steps:
 1. Parse the user's description to extract:
-   - Natural language interval: "every 30 minutes", "hourly", "every day at 9am"
-   - The skill or command to run: `/pr-watch`, `/do status`, etc.
-2. Convert natural language to a cron expression (see Conversion Table below)
-3. Confirm with user: "I'll run `{command}` {natural-language-interval} (cron: `{expression}`). OK?"
-4. If confirmed: call CronCreate with the expression and command
-5. Output: "Scheduled. ID: {id}. Use `/schedule remove {id}` to cancel."
+   - cadence: "every 30 minutes", "hourly", "every day at 9am"
+   - command or skill to run: `/pr-watch`, `/do status`, `node scripts/...`
+   - persistence requirement: same session only, local machine persistent, or cloud-style expectation
+2. Convert natural language to a cron-style schedule string or equivalent cadence summary.
+3. Pick the best supported execution surface:
+   - Codex app automation when the environment supports automations
+   - OS scheduler such as `cron`, `launchd`, or Windows Task Scheduler for durable local runs
+   - manual checklist only if the user explicitly does not want automation
+4. Confirm the proposed schedule in one line before suggesting any write or side effect.
+5. Output the schedule plan and the exact command or automation payload the user would use.
 
-**Cron Expression Conversion Table:**
+### /schedule list
+
+Only list schedules when there is a concrete source to inspect.
+
+- If the current environment exposes Codex automations, inspect that surface.
+- If the user points to OS-level scheduler entries or config files, inspect those.
+- Otherwise say there is no runtime-managed schedule inventory in the current Codex-first flow.
+
+### /schedule remove {id-or-name}
+
+Only remove schedules when the backing surface is known.
+
+- Codex automation: update or remove the automation entry.
+- OS scheduler: show the exact removal command or config change.
+- Unknown backing surface: stop and ask which scheduler owns the job.
+
+## Schedule Conversion Table
 
 | Natural Language | Cron Expression |
 |---|---|
@@ -71,111 +74,61 @@ Steps:
 | every hour / hourly | `0 * * * *` |
 | every 2 hours | `0 */2 * * *` |
 | every 6 hours | `0 */6 * * *` |
-| every day / daily | `0 9 * * *` (default 9am) |
+| every day / daily | `0 9 * * *` |
 | every day at {H}am/pm | `0 {H} * * *` |
 | every weekday | `0 9 * * 1-5` |
 | every Monday | `0 9 * * 1` |
 
-If the user provides a raw cron expression directly, use it as-is without
-converting. Validate it has 5 fields before accepting.
+If the user provides a raw cron expression directly, validate it has 5 fields
+before accepting it.
 
----
+## Supported Surfaces
 
-### /schedule remove {id}
+### Codex App Automation
 
-Remove a scheduled task by ID using CronDelete.
+Use this when the user is in an environment that supports persistent Codex
+automations and wants the task to surface back inside Codex.
 
-If the user doesn't know the ID: run `/schedule list` first, show the list,
-and ask which one to remove.
+### OS Scheduler
 
-Output: "Removed schedule {id} ({description})."
+Use this when the task must survive terminal restarts or long idle periods in a
+plain local environment.
 
----
+Examples:
+- macOS or Linux: `cron` or `launchd`
+- Windows: Task Scheduler
 
-### /schedule status
+### Legacy Claude Cloud Scheduling
 
-Show all active schedules and their next run times. Equivalent to `/schedule list`
-with additional context about what each task does and when it last ran (if available).
-
----
-
-## Session-Scoped vs. Cloud-Persistent Scheduling
-
-### Session-Scoped (CronCreate)
-
-CronCreate schedules tasks that run during the **current Claude Code session only**.
-When the session ends (Claude Code closes or the conversation is reset), all
-session-scoped schedules are cleared.
-
-**Use session-scoped when:**
-- Running checks during an active work session ("remind me every 30min to commit")
-- Polling for PR feedback while you're at the computer
-- Triggering skill runs during a long coding session
-
-### Cloud-Persistent (RemoteTrigger)
-
-For tasks that need to survive machine sleep, network drops, or session restarts,
-use **RemoteTrigger** — a one-off cloud trigger that fires from Anthropic's
-infrastructure rather than your local session.
-
-**Use cloud-persistent when:**
-- The task needs to run overnight or while you're away
-- You want notifications when you return to your machine
-- The interval spans multiple days or calendar dates
-
-**How to set up a one-off cloud trigger:**
-1. Call RemoteTrigger with the desired delay and the command to run
-2. Claude Code registers the trigger in Anthropic's cloud scheduler
-3. When the trigger fires, it wakes a new Claude Code session and runs the command
-4. Results are delivered as a notification
-
-**Note:** RemoteTrigger requires Claude Code with cloud features enabled (Pro or
-Team plan). CronCreate works on all plans but is session-scoped only.
-
----
+Claude-specific cloud triggers, `CronCreate`, `CronDelete`, `CronList`, and
+`RemoteTrigger` are not part of the active Codex runtime path. Mention them only
+as legacy context if the user is explicitly migrating an old workflow.
 
 ## Fringe Cases
 
-**CronCreate not available:**
-Output: "CronCreate requires Claude Code with task scheduling enabled. This feature
-is available in Claude Code version X.X+. Check `claude --version` and update if
-needed. Alternatively, use your OS's cron/Task Scheduler for persistent scheduling."
-Never fail silently.
-
-**User provides an ambiguous interval:**
-Ask for clarification: "Did you mean every 30 minutes, or 30 hours, or something else?"
+**Ambiguous interval:**
+Ask for clarification: "Did you mean every 30 minutes, every 30 hours, or something else?"
 
 **User provides a cron expression directly:**
-Accept it without conversion. Validate it has exactly 5 space-separated fields.
-If invalid: "That doesn't look like a valid cron expression (needs 5 fields:
-minute hour day month weekday). Example: `*/30 * * * *` = every 30 minutes."
+Accept it if it has exactly 5 space-separated fields. If invalid: "That cron expression needs 5 fields: minute hour day month weekday."
 
-**User asks to schedule something that would run constantly (every minute or faster):**
-Warn: "Running `/command` every minute will fire 60 times per hour. Are you sure?
-Consider every 5 or 15 minutes instead."
+**User asks for extremely frequent runs:**
+Warn concretely about volume. Example: "Every minute means 60 runs per hour."
 
-**No schedules exist when listing:**
-Output: "No active schedules. Use `/schedule add` to create one."
+**User wants pause instead of delete:**
+Explain whether the chosen backing surface supports disable or pause. If not, recommend removal plus recreation.
 
-**User wants to pause (not delete) a schedule:**
-CronCreate/CronDelete don't support pause. Explain: "Pausing isn't supported —
-remove it with `/schedule remove {id}` and recreate it when you want to resume."
-
----
+**User asks for a durable cloud scheduler in Codex-only local flow:**
+State that this repository does not provide a Codex cloud scheduler. Route to Codex automations if available in the host app, otherwise to the OS scheduler.
 
 ## Quality Gates
 
-- Always confirm before creating (CronCreate is a side effect)
-- Always show the cron expression alongside the natural-language description
-- Always provide the ID after creation so the user can remove it
-- Never leave a user unable to remove a schedule they created
+- Never claim a scheduler exists unless you can point to the actual backing surface.
+- Always show the resolved cadence alongside the command.
+- Always distinguish between session-scoped, local durable, and legacy cloud-only paths.
+- Never present Claude-only scheduling APIs as part of the current default flow.
 
 ## Exit Protocol
 
 /schedule does not produce a HANDOFF block. After each action, output a concise
-confirmation or list and wait for the next command.
-
-- After `add`: "Scheduled. ID: {id}. Use `/schedule remove {id}` to cancel."
-- After `remove`: "Removed schedule {id}."
-- After `list` or `status`: the active schedule list (or "No active schedules.")
-- After any error: a clear message and actionable suggestion.
+schedule plan, inventory result, or removal instruction, then wait for the next command.

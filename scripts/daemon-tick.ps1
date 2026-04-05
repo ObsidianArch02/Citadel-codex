@@ -7,11 +7,27 @@
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File C:\Users\gammo\Desktop\Citadel\scripts\daemon-tick.ps1
 #
+# Runtime command:
+#   Set CITADEL_DAEMON_COMMAND to a Codex CLI command template containing `{prompt}`.
+#   Example:
+#     $env:CITADEL_DAEMON_COMMAND = "codex exec {prompt}"
+#
 # To stop manually: close the window or Ctrl+C.
 
-$env:CLAUDE_NON_INTERACTIVE = "1"
 $citadel = "C:\Users\gammo\Desktop\Citadel"
 $logFile = "$citadel\.planning\daemon-runs.log"
+$daemonCommand = $env:CITADEL_DAEMON_COMMAND
+
+if ([string]::IsNullOrWhiteSpace($daemonCommand)) {
+    Write-Host "CITADEL_DAEMON_COMMAND is not set. Exiting."
+    Write-Host "Set it to a Codex command template, for example: codex exec {prompt}"
+    exit 1
+}
+
+if ($daemonCommand -notmatch "codex") {
+    Write-Host "CITADEL_DAEMON_COMMAND must invoke Codex. Exiting."
+    exit 1
+}
 
 while ($true) {
     # Check if daemon is still running
@@ -29,7 +45,13 @@ while ($true) {
 
     # Run one session
     Write-Host "$(Get-Date) - Starting session $($daemon.sessionCount + 1)"
-    claude --plugin-dir $citadel --dangerously-skip-permissions -p "/do continue" 2>&1 | Tee-Object -Append $logFile
+    $prompt = "/do continue"
+    $escapedPrompt = '"' + ($prompt -replace '"', '\"') + '"'
+    $commandToRun = $daemonCommand -replace "\{prompt\}", $escapedPrompt
+    if ($commandToRun -eq $daemonCommand) {
+        $commandToRun = "$daemonCommand $escapedPrompt"
+    }
+    Invoke-Expression $commandToRun 2>&1 | Tee-Object -Append $logFile
 
     # Cooldown before next session
     Write-Host "$(Get-Date) - Session complete. Cooling down 60s..."

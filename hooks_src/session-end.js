@@ -3,7 +3,7 @@
 /**
  * session-end.js — SessionEnd hook
  *
- * Fires when the Claude Code session ends (user closes, times out, or exits).
+ * Fires when the active agent session ends.
  * Responsibilities:
  *   1. Log session end to telemetry
  *   2. Update active campaign continuation state if mid-campaign
@@ -24,13 +24,7 @@
 const fs = require('fs');
 const path = require('path');
 const health = require('./harness-health-util');
-
-// Real token reader -- gracefully falls back if not available
-let sessionTokens = null;
-try {
-  const pluginRoot = path.resolve(__dirname, '..');
-  sessionTokens = require(path.join(pluginRoot, 'runtimes', 'claude-code', 'adapters', 'session-tokens'));
-} catch { /* session-tokens.js not available -- use estimation fallback */ }
+const { updateProjectMutableState } = require('../core/config/reader');
 
 const PROJECT_ROOT = health.PROJECT_ROOT;
 
@@ -75,14 +69,9 @@ function main() {
 /**
  * Log session cost data to .planning/telemetry/session-costs.jsonl.
  *
- * Two-layer approach:
- *   1. Real tokens: Read Claude Code's session JSONL for exact token counts and
- *      compute real cost from API pricing. This is the source of truth.
- *   2. Estimation fallback: If session JSONL isn't available (permissions, path
- *      issues), fall back to the heuristic model (base + agents + duration).
- *
- * The daemon and dashboard read this file. Real cost fields are present only when
- * real data was available -- consumers check for their presence.
+ * Uses a heuristic cost model based on session duration and spawned agents.
+ * Codex does not currently expose a stable local token ledger, so session cost
+ * remains estimated until a runtime-native adapter exists.
  */
 function logSessionCost(event) {
   try {
@@ -92,9 +81,7 @@ function logSessionCost(event) {
     }
 
     const now = new Date();
-    // Resolve session ID: prefer event input, fall back to latest session file
-    const sessionId = event.session_id
-      || (sessionTokens ? sessionTokens.getCurrentSessionId() : null);
+    const sessionId = event.session_id || null;
 
     // Count agent-start events from this session by scanning agent-runs.jsonl.
     const agentRunsPath = path.join(telemetryDir, 'agent-runs.jsonl');
@@ -133,35 +120,10 @@ function logSessionCost(event) {
       }
     }
 
-    // Layer 1: Try to read real token data from Claude Code session JSONL
-    let realTokens = null;
-    let realCost = null;
-    let durationMinutes = 0;
-
-    if (sessionTokens && sessionId) {
-      try {
-        const result = sessionTokens.readSessionTokens(sessionId);
-        if (result && result.combined.messages > 0) {
-          realTokens = result.combined;
-          realCost = sessionTokens.computeCost(result.combined);
-
-          // Compute duration from real timestamps
-          if (realTokens.first_timestamp && realTokens.last_timestamp) {
-            durationMinutes = Math.max(1, Math.round(
-              (new Date(realTokens.last_timestamp) - new Date(realTokens.first_timestamp)) / 60000
-            ));
-          }
-        }
-      } catch { /* real data unavailable -- fall back */ }
-    }
-
-    // Layer 2: Estimation fallback
-    if (!durationMinutes) {
-      const startTime = sessionStartTime
-        ? new Date(sessionStartTime)
-        : new Date(now.getTime() - 10 * 60 * 1000);
-      durationMinutes = Math.max(1, Math.round((now - startTime) / 60000));
-    }
+    const startTime = sessionStartTime
+      ? new Date(sessionStartTime)
+      : new Date(now.getTime() - 10 * 60 * 1000);
+    const durationMinutes = Math.max(1, Math.round((now - startTime) / 60000));
 
     const BASE_SESSION_COST = 1.00;
     const COST_PER_SUBAGENT = 0.50;
@@ -170,7 +132,6 @@ function logSessionCost(event) {
       (BASE_SESSION_COST + (agentCount * COST_PER_SUBAGENT) + (durationMinutes * COST_PER_MINUTE)) * 100
     ) / 100;
 
-    // Build the cost entry -- real fields present only when real data available
     const costEntry = {
       schema: 2,
       timestamp: now.toISOString(),
@@ -182,18 +143,6 @@ function logSessionCost(event) {
       override_cost: null,
     };
 
-    // Enrich with real token data when available
-    if (realTokens) {
-      costEntry.real_cost = realCost;
-      costEntry.input_tokens = realTokens.input_tokens;
-      costEntry.output_tokens = realTokens.output_tokens;
-      costEntry.cache_creation_input_tokens = realTokens.cache_creation_input_tokens;
-      costEntry.cache_read_input_tokens = realTokens.cache_read_input_tokens;
-      costEntry.messages = realTokens.messages;
-      costEntry.subagent_count = realTokens.messages > 0 ? (agentCount || 0) : 0;
-      costEntry.models = realTokens.models;
-    }
-
     fs.appendFileSync(
       path.join(telemetryDir, 'session-costs.jsonl'),
       JSON.stringify(costEntry) + '\n',
@@ -201,23 +150,22 @@ function logSessionCost(event) {
     );
 
     // Output one-line session cost summary to terminal.
-    // This fires AFTER the session -- stdout goes to the user's terminal, not Claude.
-    // Configurable via cost.sessionEndSummary in harness.json (default: true).
+    // This fires AFTER the session -- stdout goes to the user's terminal, not the runtime.
+    // Configurable via cost.sessionEndSummary in runtime config (default: true).
     try {
       const config = health.readConfig();
       const costConfig = config?.cost || config?.policy?.costTracker || {};
       const showSummary = costConfig.sessionEndSummary !== false;
 
       if (showSummary) {
-        const cost = realCost !== null ? realCost : estimatedCost;
-        const source = realCost !== null ? '' : ' (est)';
+        const cost = estimatedCost;
+        const source = ' (est)';
         const rate = durationMinutes > 0 ? (cost / durationMinutes).toFixed(2) : '?';
         const campaign = campaignSlug ? ` | campaign: ${campaignSlug}` : '';
         const agents = agentCount > 0 ? ` | ${agentCount} agents` : '';
-        const msgs = realTokens ? ` | ${realTokens.messages} msgs` : '';
 
         process.stdout.write(
-          `[session] $${cost.toFixed(2)}${source} | ${durationMinutes} min | $${rate}/min${msgs}${agents}${campaign}\n`
+          `[session] $${cost.toFixed(2)}${source} | ${durationMinutes} min | $${rate}/min${agents}${campaign}\n`
         );
       }
     } catch { /* summary is non-critical */ }
@@ -225,18 +173,22 @@ function logSessionCost(event) {
 }
 
 /**
- * Increment trust counters in harness.json for contextual appropriateness.
+ * Increment trust counters in Codex mutable state for contextual appropriateness.
  * Tracks sessions completed and campaigns completed this session.
  * Non-critical -- wrapped in try/catch.
  */
 function incrementTrustCounters() {
   try {
-    const configPath = path.join(PROJECT_ROOT, '.claude', 'harness.json');
-    if (!fs.existsSync(configPath)) return; // trust isn't tracked without config
+    updateProjectMutableState(PROJECT_ROOT, (state) => {
+      const next = {
+        ...state,
+        trust: {
+          ...(state.trust || {}),
+        },
+      };
 
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    if (!config.trust) {
-      config.trust = {
+      if (!next.trust || Object.keys(next.trust).length === 0) {
+        next.trust = {
         sessions_completed: 0,
         campaigns_completed: 0,
         campaigns_reverted: 0,
@@ -244,82 +196,84 @@ function incrementTrustCounters() {
         improve_loops_accepted: 0,
         daemon_runs: 0,
         override: null,
-      };
-    }
-
-    // Always increment sessions_completed
-    config.trust.sessions_completed = (config.trust.sessions_completed || 0) + 1;
-
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-
-    // Check if a campaign completed this session
-    const completedDir = path.join(PROJECT_ROOT, '.planning', 'campaigns', 'completed');
-    if (fs.existsSync(completedDir)) {
-      const completedFiles = fs.readdirSync(completedDir).filter(f => f.endsWith('.md'));
-      for (const f of completedFiles) {
-        try {
-          const stat = fs.statSync(path.join(completedDir, f));
-          if (stat.mtimeMs >= fiveMinutesAgo) {
-            config.trust.campaigns_completed = (config.trust.campaigns_completed || 0) + 1;
-            break; // count at most one campaign completion per session
-          }
-        } catch { /* skip unreadable files */ }
+        };
       }
-    }
 
-    // Check if a fleet session merged cleanly this session
-    const fleetDir = path.join(PROJECT_ROOT, '.planning', 'fleet');
-    if (fs.existsSync(fleetDir)) {
-      const fleetFiles = fs.readdirSync(fleetDir).filter(f => f.endsWith('.md'));
-      for (const f of fleetFiles) {
-        try {
-          const content = fs.readFileSync(path.join(fleetDir, f), 'utf8');
-          const stat = fs.statSync(path.join(fleetDir, f));
-          if (stat.mtimeMs >= fiveMinutesAgo && /status:\s*completed/i.test(content) && !/conflict/i.test(content)) {
-            config.trust.fleet_clean_merges = (config.trust.fleet_clean_merges || 0) + 1;
-            break;
-          }
-        } catch { /* skip unreadable files */ }
-      }
-    }
+      // Always increment sessions_completed
+      next.trust.sessions_completed = (next.trust.sessions_completed || 0) + 1;
 
-    // Check if an improve loop completed this session
-    const improveLogsDir = path.join(PROJECT_ROOT, '.planning', 'improvement-logs');
-    if (fs.existsSync(improveLogsDir)) {
-      try {
-        const targets = fs.readdirSync(improveLogsDir).filter(d => {
-          try { return fs.statSync(path.join(improveLogsDir, d)).isDirectory(); } catch { return false; }
-        });
-        for (const target of targets) {
-          const loopFiles = fs.readdirSync(path.join(improveLogsDir, target)).filter(f => f.startsWith('loop-') && f.endsWith('.md'));
-          for (const lf of loopFiles) {
-            try {
-              const stat = fs.statSync(path.join(improveLogsDir, target, lf));
-              if (stat.mtimeMs >= fiveMinutesAgo) {
-                config.trust.improve_loops_accepted = (config.trust.improve_loops_accepted || 0) + 1;
-                break;
-              }
-            } catch { /* skip */ }
-          }
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+
+      // Check if a campaign completed this session
+      const completedDir = path.join(PROJECT_ROOT, '.planning', 'campaigns', 'completed');
+      if (fs.existsSync(completedDir)) {
+        const completedFiles = fs.readdirSync(completedDir).filter(f => f.endsWith('.md'));
+        for (const f of completedFiles) {
+          try {
+            const stat = fs.statSync(path.join(completedDir, f));
+            if (stat.mtimeMs >= fiveMinutesAgo) {
+              next.trust.campaigns_completed = (next.trust.campaigns_completed || 0) + 1;
+              break; // count at most one campaign completion per session
+            }
+          } catch { /* skip unreadable files */ }
         }
-      } catch { /* skip */ }
-    }
+      }
 
-    // Check if this was a daemon-driven session
-    const isNonInteractive = process.env.CLAUDE_NON_INTERACTIVE === '1';
-    if (isNonInteractive) {
-      const daemonPath = path.join(PROJECT_ROOT, '.planning', 'daemon.json');
-      if (fs.existsSync(daemonPath)) {
+      // Check if a fleet session merged cleanly this session
+      const fleetDir = path.join(PROJECT_ROOT, '.planning', 'fleet');
+      if (fs.existsSync(fleetDir)) {
+        const fleetFiles = fs.readdirSync(fleetDir).filter(f => f.endsWith('.md'));
+        for (const f of fleetFiles) {
+          try {
+            const content = fs.readFileSync(path.join(fleetDir, f), 'utf8');
+            const stat = fs.statSync(path.join(fleetDir, f));
+            if (stat.mtimeMs >= fiveMinutesAgo && /status:\s*completed/i.test(content) && !/conflict/i.test(content)) {
+              next.trust.fleet_clean_merges = (next.trust.fleet_clean_merges || 0) + 1;
+              break;
+            }
+          } catch { /* skip unreadable files */ }
+        }
+      }
+
+      // Check if an improve loop completed this session
+      const improveLogsDir = path.join(PROJECT_ROOT, '.planning', 'improvement-logs');
+      if (fs.existsSync(improveLogsDir)) {
         try {
-          const daemon = JSON.parse(fs.readFileSync(daemonPath, 'utf8'));
-          if (daemon.status === 'running') {
-            config.trust.daemon_runs = (config.trust.daemon_runs || 0) + 1;
+          const targets = fs.readdirSync(improveLogsDir).filter(d => {
+            try { return fs.statSync(path.join(improveLogsDir, d)).isDirectory(); } catch { return false; }
+          });
+          for (const target of targets) {
+            const loopFiles = fs.readdirSync(path.join(improveLogsDir, target)).filter(f => f.startsWith('loop-') && f.endsWith('.md'));
+            for (const lf of loopFiles) {
+              try {
+                const stat = fs.statSync(path.join(improveLogsDir, target, lf));
+                if (stat.mtimeMs >= fiveMinutesAgo) {
+                  next.trust.improve_loops_accepted = (next.trust.improve_loops_accepted || 0) + 1;
+                  break;
+                }
+              } catch { /* skip */ }
+            }
           }
         } catch { /* skip */ }
       }
-    }
 
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+      // Check if this was a daemon-driven session
+      const isNonInteractive = process.env.CITADEL_NON_INTERACTIVE === '1'
+        || process.env.CLAUDE_NON_INTERACTIVE === '1';
+      if (isNonInteractive) {
+        const daemonPath = path.join(PROJECT_ROOT, '.planning', 'daemon.json');
+        if (fs.existsSync(daemonPath)) {
+          try {
+            const daemon = JSON.parse(fs.readFileSync(daemonPath, 'utf8'));
+            if (daemon.status === 'running') {
+              next.trust.daemon_runs = (next.trust.daemon_runs || 0) + 1;
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      return next;
+    });
   } catch { /* non-critical -- never block session end */ }
 }
 
@@ -367,9 +321,10 @@ function updateDaemonState() {
     // Only auto-update for non-interactive sessions (cron/scheduled task).
     // Interactive sessions where a human typed /do continue shouldn't
     // silently increment the daemon's session counter.
-    // CLAUDE_NON_INTERACTIVE is set by the scheduled task script.
+    // CITADEL_NON_INTERACTIVE is set by the scheduled task script.
     // process.argv won't contain the parent's -p flag -- hooks are child processes.
-    const isNonInteractive = process.env.CLAUDE_NON_INTERACTIVE === '1';
+    const isNonInteractive = process.env.CITADEL_NON_INTERACTIVE === '1'
+      || process.env.CLAUDE_NON_INTERACTIVE === '1';
     if (!isNonInteractive) return;
 
     // Read the campaign to get the latest loop info

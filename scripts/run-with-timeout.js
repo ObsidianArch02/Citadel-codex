@@ -18,8 +18,9 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { resolveProjectRoot } = require('../core/project-paths');
 
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const PROJECT_ROOT = resolveProjectRoot();
 
 // ── Parse args ───────────────────────────────────────────────────────────────
 

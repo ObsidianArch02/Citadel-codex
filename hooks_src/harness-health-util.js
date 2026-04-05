@@ -9,18 +9,22 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolvePluginDataDir, resolveProjectRoot } = require('../core/project-paths');
+const {
+  readProjectRuntime,
+  updateProjectMutableState,
+} = require('../core/config/reader');
 
-const PROJECT_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const PROJECT_ROOT = resolveProjectRoot();
 const TELEMETRY_DIR = path.join(PROJECT_ROOT, '.planning', 'telemetry');
 const HOOK_TIMING_FILE = path.join(TELEMETRY_DIR, 'hook-timing.jsonl');
 const AUDIT_LOG_FILE = path.join(TELEMETRY_DIR, 'audit.jsonl');
 
 /**
- * Plugin-scoped data directory for mutable state that survives plugin updates.
- * Uses CLAUDE_PLUGIN_DATA env var when available (Claude Code >= recent release).
- * Falls back to .claude/ in the project root for backward compatibility.
+ * Plugin-scoped data directory for mutable state that survives runtime updates.
+ * Prefers Codex-native storage and still accepts legacy env vars when present.
  */
-const PLUGIN_DATA_DIR = process.env.CLAUDE_PLUGIN_DATA || path.join(PROJECT_ROOT, '.claude');
+const PLUGIN_DATA_DIR = resolvePluginDataDir(PROJECT_ROOT);
 
 /**
  * Ensure telemetry directory exists.
@@ -74,52 +78,17 @@ function logTiming(hook, durationMs, meta = {}) {
 }
 
 /**
- * Read the harness config file if it exists.
- * @returns {object} Config object or empty defaults
+ * Read the Citadel runtime config plus mutable state overlays.
+ * @returns {object} Runtime config with trust、consent and skill registry merged in
  */
 function readConfig() {
-  const configPath = path.join(PROJECT_ROOT, '.claude', 'harness.json');
-  try {
-    if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    }
-  } catch { /* malformed config — use defaults */ }
+  const runtime = readProjectRuntime(PROJECT_ROOT);
   return {
-    language: 'unknown',
-    framework: null,
-    packageManager: 'npm',
-    typecheck: { command: null, perFile: false },
-    test: { command: null, framework: null },
-    qualityRules: { builtIn: [], custom: [] },
-    protectedFiles: ['.claude/harness.json'],
-    features: { intakeScanner: true, telemetry: true },
-    policy: {
-      scopeEnforcement: 'warn',   // 'warn' | 'block' | 'off'
-      auditLog: true,
-      allowedOutOfScopeTools: [], // tools exempt from scope warnings
-    },
-    verification: {
-      hot: ['programmatic', 'structural', 'performance'],
-      cold: ['performance', 'accessibility', 'adversarial', 'contractual', 'cross-reference'],
-      disabled: [],               // lens names to skip entirely
-    },
-    preCompact: {
-      handoffMode: 'auto',        // 'auto' | 'prompt' | 'off'
-    },
-    docs: {
-      auto: true,                 // false to disable automatic doc sync
-      audiences: ['user', 'org', 'agents'],
-      exclude: [],
-    },
-    trust: {
-      sessions_completed: 0,
-      campaigns_completed: 0,
-      campaigns_reverted: 0,
-      fleet_clean_merges: 0,
-      improve_loops_accepted: 0,
-      daemon_runs: 0,
-      override: null,
-    },
+    ...runtime.config,
+    trust: runtime.state.trust,
+    consent: runtime.state.consent,
+    registeredSkills: runtime.state.skillRegistry.registeredSkills,
+    registeredSkillCount: runtime.state.skillRegistry.registeredSkillCount,
   };
 }
 
@@ -349,7 +318,7 @@ function writeAuditLog(event, data = {}) {
  *   - "session-allow"     Allow for this session, ask fresh next session
  *   - "auto-allow"        Trust the agent, never ask again for this category
  *
- * Preferences are stored in harness.json under "consent".
+ * Preferences are stored in Codex mutable state under `consent`.
  * Session-scoped allows use a timestamp file in PLUGIN_DATA_DIR.
  *
  * Categories:
@@ -375,26 +344,17 @@ function readConsent(category) {
 }
 
 /**
- * Write a consent preference for a category to harness.json.
- * Creates harness.json if it doesn't exist.
+ * Write a consent preference for a category to mutable state.
+ * Creates `.codex/state.json` if it doesn't exist.
  * @param {string} category
  * @param {'always-ask'|'session-allow'|'auto-allow'} preference
  */
 function writeConsent(category, preference) {
-  const configPath = path.join(PROJECT_ROOT, '.claude', 'harness.json');
-  let config = {};
-  try {
-    if (fs.existsSync(configPath)) {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    }
-  } catch { /* start fresh */ }
-
-  if (!config.consent) config.consent = {};
-  config.consent[category] = preference;
-
-  const dir = path.dirname(configPath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  updateProjectMutableState(PROJECT_ROOT, (state) => {
+    const next = { ...state, consent: { ...(state.consent || {}) } };
+    next.consent[category] = preference;
+    return next;
+  });
 }
 
 /**

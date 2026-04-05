@@ -3,7 +3,7 @@
 > last-updated: 2026-03-24
 
 Skills are the building blocks of the harness. Each skill is a markdown protocol
-that loads into Claude's context when invoked, giving it domain-specific expertise.
+that loads into Codex context when invoked, giving it domain-specific expertise.
 
 ## Why Skills?
 
@@ -15,7 +15,7 @@ Skills cost zero tokens when not active. They're loaded on demand.
 
 ## Skill File Format
 
-Built-in Citadel skills live in the plugin's `skills/` directory. Custom project skills are created at `.claude/skills/{name}/SKILL.md` in your project:
+Built-in Citadel skills live in the repository `skills/` directory. Project-level projected artefacts are written under `.agents/skills/` in your project:
 
 ```markdown
 ---
@@ -48,7 +48,7 @@ What does it NOT do? Clear boundaries prevent misuse.
 
 Step-by-step instructions. This is what Claude follows.
 
-1. Read CLAUDE.md to understand project conventions
+1. Read `AGENTS.md` to understand project conventions
 2. {Specific action}
 3. {Specific action}
 4. ...
@@ -104,10 +104,10 @@ expectations for what it will produce.
 
 ### Protocol
 
-The recipe. Numbered steps that Claude follows in order.
+The recipe. Numbered steps that the agent follows in order.
 
 **Tips for good protocols:**
-- Start with "Read CLAUDE.md" — every skill should respect project conventions
+- Start with "Read `AGENTS.md`" — every skill should respect project conventions
 - Be specific: "Run `npm test`" not "verify the code works"
 - Include decision points: "If tests fail, try X. If X fails, report and stop."
 - Include iteration limits: "Retry up to 3 times" prevents infinite loops
@@ -147,14 +147,14 @@ The fastest way to create a new skill is `/create-skill`. It interviews you
 about the domain, patterns, and mistakes, then generates a complete skill file.
 
 Run it when you notice:
-- You keep explaining the same patterns to Claude
+- You keep explaining the same patterns to Codex
 - The agent keeps making the same mistakes
 - You have a workflow that could be codified
 
 ## Skill Discovery
 
-The `/do` router finds built-in skills from the Citadel plugin and custom
-skills by scanning `.claude/skills/*/SKILL.md` in your project.
+The `/do` router finds built-in skills from the Citadel repository and projected
+skill artefacts inside your project.
 When you create a new skill, it's automatically available to the router.
 
 The skill's `name` and `description` in the frontmatter determine how

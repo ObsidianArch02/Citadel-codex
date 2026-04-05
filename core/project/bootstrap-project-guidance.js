@@ -4,7 +4,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { CLAUDE_GUIDANCE_TARGET } = require('../../runtimes/claude-code/guidance/render');
 const { CODEX_GUIDANCE_TARGET } = require('../../runtimes/codex/guidance/render');
 const { loadProjectSpec, resolveProjectSpecPath } = require('./load-project-spec');
 
@@ -71,13 +70,11 @@ function bootstrapProjectGuidance(options = {}) {
   const spec = ensured.loaded.spec;
   const overwriteGuidance = options.overwriteGuidance === true;
 
-  const claude = writeGuidanceFile(projectRoot, CLAUDE_GUIDANCE_TARGET, spec, overwriteGuidance);
   const codex = writeGuidanceFile(projectRoot, CODEX_GUIDANCE_TARGET, spec, overwriteGuidance);
 
   return {
     specPath: ensured.specPath,
     specCreated: ensured.created,
-    claude,
     codex,
   };
 }

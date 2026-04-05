@@ -49,8 +49,8 @@ exist, treat it as empty. Never crash on missing state.
 
 Source 1 -- Real token data (primary):
 - Run `node scripts/session-tokens.js --today` and `node scripts/session-tokens.js --all`
-- If the script exists and produces output, use its numbers (they read Claude Code's
-  native session JSONL files for exact token counts and compute cost from API pricing).
+- If the script exists and produces output, use its numbers (they read local
+  runtime session JSONL files for exact token counts and compute cost from API pricing).
 
 Source 2 -- Session costs JSONL (fallback, also provides campaign attribution):
 - Read `.planning/telemetry/session-costs.jsonl` (if it exists)
@@ -102,8 +102,8 @@ Data source indicator:
 **Health:**
 - Count circuit breaker entries from audit.jsonl (from hook value data above)
 - Count total lines in `.planning/telemetry/audit.jsonl` written today
-- Count entries in `hooks` array of `.claude/hooks-template.json` (or
-  `.claude/hooks.json` if template not present); use 0 if neither exists
+- Count entries in `hooks` array of `.codex/hooks.json` (legacy fallback:
+  `.claude/settings.json` when `.codex/hooks.json` is missing); use 0 if neither exists
 
 ### Step 2: FORMAT RELATIVE TIMESTAMPS
 
@@ -184,7 +184,7 @@ Show the dashboard with all counts as 0 and all lists as "(none active)" or
 NOTE: .planning/ not found. Run /do setup to initialize harness state.
 ```
 
-**If harness.json is missing or malformed:**
+**If runtime config is missing or malformed:**
 Show "not configured" for hooks count. Do not crash.
 
 **If a campaign file is malformed markdown:**

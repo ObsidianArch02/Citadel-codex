@@ -3,8 +3,8 @@
 /**
  * cost-tracker.js -- PostToolUse hook (all tools)
  *
- * Real-time session cost monitoring. Reads Claude Code's session JSONL
- * to compute actual token spend. Silent most of the time -- only outputs
+ * Real-time session cost monitoring. Uses Citadel telemetry to compute a
+ * running estimated spend. Silent most of the time -- only outputs
  * a one-line summary when cost crosses a threshold.
  *
  * Design principles:
@@ -14,7 +14,8 @@
  *   - Tracks burn rate ($/min over recent window) so users can spot runaway sessions.
  *   - Writes state to .planning/telemetry/cost-tracker-state.json for persistence.
  *
- * Thresholds (configurable via policy.costTracker in harness.json):
+ * Thresholds (configurable via runtime config `cost` section, with legacy
+ * fallback from policy.costTracker):
  *   $5, $15, $30, $50, $75, $100, $150, $200, $300, $500
  *
  * Output format:
@@ -184,39 +185,14 @@ function run() {
     process.exit(0);
   }
 
-  // Load the Claude runtime token adapter
-  let sessionTokens;
-  try {
-    sessionTokens = require(path.join(PLUGIN_ROOT, 'runtimes', 'claude-code', 'adapters', 'session-tokens'));
-  } catch {
-    process.exit(0); // module not available
-  }
+  const snapshot = estimateCurrentSession();
+  const sessionId = snapshot.sessionId;
+  if (!sessionId) process.exit(0);
 
-  // Find current session
-  const sessionId = sessionTokens.getCurrentSessionId();
-  if (!sessionId) {
-    process.exit(0);
-  }
-
-  // Read real token data
-  const result = sessionTokens.readSessionTokens(sessionId);
-  if (!result || result.combined.messages === 0) {
-    writeState({ lastCheckMs: now, sessionId, lastThresholdIndex: -1 });
-    process.exit(0);
-  }
-
-  const cost = sessionTokens.computeCost(result.combined);
-  const tokens = result.combined;
-
-  // Calculate duration and burn rate
-  let durationMin = 0;
-  let burnRate = 0;
-  if (tokens.first_timestamp && tokens.last_timestamp) {
-    durationMin = Math.max(1, Math.round(
-      (new Date(tokens.last_timestamp) - new Date(tokens.first_timestamp)) / 60000
-    ));
-    burnRate = cost / durationMin;
-  }
+  const cost = snapshot.cost;
+  const durationMin = snapshot.durationMin;
+  const burnRate = snapshot.burnRate;
+  const agentCount = snapshot.agentCount;
 
   // Find which threshold we've crossed
   const thresholds = policy.thresholds.sort((a, b) => a - b);
@@ -249,8 +225,8 @@ function run() {
     cost,
     durationMin,
     burnRate: Math.round(burnRate * 100) / 100,
-    messages: tokens.messages,
-    subagents: result.subagents.length,
+    messages: null,
+    subagents: agentCount,
   });
 
   // Determine what to output
@@ -268,28 +244,13 @@ function run() {
       ? thresholds[currentThresholdIndex + 1]
       : null;
 
-    if (policy.mode === 'pro' || policy.mode === 'max') {
-      // Token-focused output for subscribers (no dollar amounts)
-      const totalTokens = tokens.input_tokens + tokens.output_tokens +
-        tokens.cache_creation_input_tokens + tokens.cache_read_input_tokens;
-      const cacheHitRate = tokens.cache_read_input_tokens > 0
-        ? Math.round(tokens.cache_read_input_tokens / (tokens.cache_read_input_tokens + tokens.input_tokens + tokens.cache_creation_input_tokens) * 100)
-        : 0;
-      const tokPerMin = durationMin > 0 ? Math.round(totalTokens / durationMin) : 0;
+    const costStr = '$' + cost.toFixed(2);
+    const rateStr = '$' + burnRate.toFixed(2) + '/min';
+    const nextStr = nextThreshold ? ` | next alert at $${nextThreshold}` : '';
 
-      messages.push(
-        `[usage] ${formatTokens(totalTokens)} tokens (${cacheHitRate}% cache hits, ${durationMin} min, ${formatTokens(tokPerMin)}/min, ${tokens.messages} msgs)`
-      );
-    } else {
-      // Dollar-focused output for API users
-      const costStr = '$' + cost.toFixed(2);
-      const rateStr = '$' + burnRate.toFixed(2) + '/min';
-      const nextStr = nextThreshold ? ` | next alert at $${nextThreshold}` : '';
-
-      messages.push(
-        `[cost] ${costStr} this session (${durationMin} min, ${rateStr}, ${tokens.messages} msgs, ${result.subagents.length} agents)${nextStr}`
-      );
-    }
+    messages.push(
+      `[cost] ${costStr} est this session (${durationMin} min, ${rateStr}, ${agentCount} agents)${nextStr}`
+    );
 
     health.logTiming('cost-tracker', 0, {
       event: 'threshold-crossed',
@@ -317,8 +278,8 @@ function run() {
         durationMin,
         burnRate: Math.round(burnRate * 100) / 100,
         threshold: crossedNewThreshold ? thresholds[currentThresholdIndex] : null,
-        messages: tokens.messages,
-        subagents: result.subagents.length,
+        messages: null,
+        subagents: agentCount,
         budgetAlert: budgetAlert || null,
       },
     }));
@@ -327,6 +288,45 @@ function run() {
   }
 
   process.exit(0);
+}
+
+function estimateCurrentSession() {
+  const now = Date.now();
+  const agentRunsPath = path.join(TELEMETRY_DIR, 'agent-runs.jsonl');
+  const sessionId = new Date(now).toISOString().slice(0, 16);
+  let agentCount = 0;
+  let sessionStartTime = null;
+
+  if (fs.existsSync(agentRunsPath)) {
+    const lines = fs.readFileSync(agentRunsPath, 'utf8').split('\n').filter(Boolean);
+    const fourHoursAgo = new Date(now - 4 * 60 * 60 * 1000).toISOString();
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (!entry.timestamp || entry.timestamp < fourHoursAgo) break;
+        if (entry.event === 'agent-start') agentCount++;
+        if (!sessionStartTime && (entry.event === 'campaign-start' || entry.event === 'wave-start')) {
+          sessionStartTime = entry.timestamp;
+        }
+      } catch { /* skip malformed lines */ }
+    }
+  }
+
+  const startTime = sessionStartTime
+    ? new Date(sessionStartTime)
+    : new Date(now - 10 * 60 * 1000);
+  const durationMin = Math.max(1, Math.round((now - startTime.getTime()) / 60000));
+  const cost = Math.round((1.00 + (agentCount * 0.50) + (durationMin * 0.10)) * 100) / 100;
+  const burnRate = durationMin > 0 ? cost / durationMin : 0;
+
+  return {
+    sessionId,
+    agentCount,
+    durationMin,
+    cost,
+    burnRate,
+  };
 }
 
 main();

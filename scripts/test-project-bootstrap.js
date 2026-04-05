@@ -20,26 +20,25 @@ try {
 
   assert(first.specCreated, 'bootstrap should create a missing canonical spec');
   assert(fs.existsSync(path.join(tmpRoot, '.citadel', 'project.md')), 'bootstrap should create .citadel/project.md');
-  assert(fs.existsSync(path.join(tmpRoot, 'CLAUDE.md')), 'bootstrap should create CLAUDE.md');
   assert(fs.existsSync(path.join(tmpRoot, 'AGENTS.md')), 'bootstrap should create AGENTS.md');
 
-  fs.writeFileSync(path.join(tmpRoot, 'CLAUDE.md'), 'custom claude guidance', 'utf8');
+  fs.writeFileSync(path.join(tmpRoot, 'AGENTS.md'), 'custom codex guidance', 'utf8');
   const second = bootstrapProjectGuidance({
     citadelRoot: path.join(__dirname, '..'),
     projectRoot: tmpRoot,
   });
 
   assert(!second.specCreated, 'bootstrap should reuse existing canonical spec');
-  assert(second.claude.skipped, 'bootstrap should not overwrite existing CLAUDE.md without flag');
-  assert.equal(fs.readFileSync(path.join(tmpRoot, 'CLAUDE.md'), 'utf8'), 'custom claude guidance');
+  assert(second.codex.skipped, 'bootstrap should not overwrite existing AGENTS.md without flag');
+  assert.equal(fs.readFileSync(path.join(tmpRoot, 'AGENTS.md'), 'utf8'), 'custom codex guidance');
 
   const third = bootstrapProjectGuidance({
     citadelRoot: path.join(__dirname, '..'),
     projectRoot: tmpRoot,
     overwriteGuidance: true,
   });
-  assert(third.claude.written, 'bootstrap should overwrite guidance when requested');
-  assert(fs.readFileSync(path.join(tmpRoot, 'CLAUDE.md'), 'utf8').includes('# Claude Harness'));
+  assert(third.codex.written, 'bootstrap should overwrite guidance when requested');
+  assert(fs.readFileSync(path.join(tmpRoot, 'AGENTS.md'), 'utf8').includes('## Citadel Project Guidance'));
 
   console.log('project bootstrap tests passed');
 } finally {

@@ -6,7 +6,6 @@ const { CAPABILITY_IDS, REQUIRED_CAPABILITY_FIELDS, isSupportLevel } = require('
 const { CIT_EVENT_ORDER } = require('./events');
 
 const RUNTIME_IDS = Object.freeze([
-  'claude-code',
   'codex',
   'unknown',
 ]);

@@ -19,7 +19,7 @@ Citadel is responsible for:
 
 ### What the runtime gets
 
-Any agent runtime (Claude Code, Codex, aider, local models, etc.) receives:
+Any agent runtime adapter receives:
 
 ```
 {
@@ -32,13 +32,15 @@ Any agent runtime (Claude Code, Codex, aider, local models, etc.) receives:
 The runtime does not need to know about worktrees. It gets a directory and instructions.
 It edits files. Citadel handles the rest.
 
-### Why this works for any runtime
+### Why this works for Codex first, and other runtimes by adaptation
 
-Claude Code uses `isolation: "worktree"` natively. For non-Claude-Code runtimes:
-- Citadel creates the worktree before calling the runtime adapter
+Codex is the active runtime in this repository:
+- Citadel creates the worktree before calling the Codex adapter
 - The adapter receives a directory path, not a branch name
 - When the adapter finishes, Citadel reads the diff and decides what to do with it
-- No runtime-specific isolation code needed
+
+Other runtimes can still be supported, but only through explicit adapters that
+map into the same `workingDirectory` contract.
 
 ## Worktree Lifecycle
 
@@ -110,7 +112,7 @@ worktree_status: active         # active | merged | archived | null
 
 ## Runtime Adapter Interface
 
-The runtime adapter contract (current — Claude Code native):
+The runtime adapter contract (current — Codex runtime):
 
 ```typescript
 interface AgentRuntime {
@@ -128,8 +130,8 @@ interface AgentResult {
 }
 ```
 
-For Claude Code, `isolation: "worktree"` handles the working directory automatically.
-For other runtimes, pass `workingDirectory` directly and skip the `isolation` parameter.
+For Codex, pass `workingDirectory` directly through the runtime adapter contract.
+For other runtimes, support is compatibility-only until a maintained adapter exists.
 
 ## V4 Roadmap: Worktree Pool
 
@@ -188,7 +190,7 @@ and IDE tools.
 ```
 
 `enabled: false` until V4. The config key is reserved so V4 can enable it without
-breaking existing harness.json files.
+breaking existing `.codex/config.toml` files.
 
 ### Implementation notes for V4
 

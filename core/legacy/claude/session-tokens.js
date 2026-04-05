@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot } = require('../../project-paths');
 
 const HARDCODED_PRICING = {
   'claude-opus-4-6': { input: 5.00, output: 25.00, cacheCreation: 6.25, cacheRead: 0.50 },
@@ -47,7 +48,7 @@ function getPricing(model) {
 }
 
 function getProjectSlug() {
-  const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  const projectDir = resolveProjectRoot();
   const normalized = projectDir.replace(/\\/g, '/');
   return normalized.replace(/^\//, '').replace(/:/g, '-').replace(/\//g, '-');
 }
@@ -219,8 +220,7 @@ function getLatestSessionId() {
 }
 
 function getCurrentSessionId() {
-  if (process.env.CLAUDE_SESSION_ID) return process.env.CLAUDE_SESSION_ID;
-  return getLatestSessionId();
+  return process.env.CITADEL_SESSION_ID || process.env.CLAUDE_SESSION_ID || getLatestSessionId();
 }
 
 function readAllSessions(opts = {}) {
@@ -278,16 +278,18 @@ function readAllSessions(opts = {}) {
   return { sessions, totals };
 }
 
-module.exports = {
+module.exports = Object.freeze({
   PRICING,
   computeCost,
   computeCostWithPricing,
   getCurrentSessionId,
   getLatestSessionId,
   getPricing,
+  getProjectSlug,
   getSessionsDir,
   listSessionIds,
   normalizeModel,
+  parseTokensFromFile,
   readAllSessions,
   readSessionTokens,
-};
+});

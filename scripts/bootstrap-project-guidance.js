@@ -32,7 +32,6 @@ function main() {
   });
 
   console.log(`[spec] ${result.specCreated ? 'created' : 'reused'} ${result.specPath}`);
-  console.log(`[guidance] claude ${result.claude.written ? 'written' : 'skipped'} ${result.claude.filePath}`);
   console.log(`[guidance] codex ${result.codex.written ? 'written' : 'skipped'} ${result.codex.filePath}`);
 }
 

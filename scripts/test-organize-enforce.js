@@ -6,7 +6,7 @@
  * Creates sandbox projects with various organization manifests, fires synthetic
  * Edit/Write events at the hook, and verifies correct warn/block/pass behavior.
  *
- * No LLM or Claude Code runtime needed -- hooks are scripts that read JSON from stdin.
+ * No LLM or live runtime session needed -- hooks are scripts that read JSON from stdin.
  *
  * Usage:
  *   node scripts/test-organize-enforce.js

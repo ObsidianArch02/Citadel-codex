@@ -106,7 +106,7 @@ When another skill or orchestrator needs a map slice for agent injection:
 ```
 
 3. The calling skill injects this block into the agent's prompt alongside
-   CLAUDE.md and rules-summary.md
+   `AGENTS.md` and the projected rules summary
 
 **Token budget:** A 15-file slice is typically 800-1200 tokens. This replaces
 2000-5000 tokens of exploratory Glob/Grep results that agents would otherwise
@@ -118,13 +118,13 @@ Fleet agents receive map slices automatically when `/map` index exists:
 
 1. Before spawning each wave, Fleet checks if `.planning/map/index.json` exists
 2. If it exists: Fleet runs a query scoped to each agent's assigned domain
-3. The resulting slice is prepended to the agent's context alongside CLAUDE.md
-   and rules-summary.md
+3. The resulting slice is prepended to the agent's context alongside `AGENTS.md`
+   and the projected rules summary
 4. If the index does not exist: Fleet proceeds without a map slice (no error)
 
 **Context injection order:**
-1. CLAUDE.md content
-2. `.claude/agent-context/rules-summary.md`
+1. `AGENTS.md` content (legacy fallback: `CLAUDE.md` if present)
+2. Projected rules summary artifact (runtime-managed)
 3. **Map slice** (scoped to agent's domain/direction)
 4. Campaign-specific direction and scope
 5. Discovery briefs from previous waves

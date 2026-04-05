@@ -2,7 +2,7 @@
 
 > last-updated: 2026-03-25
 
-Hooks are shell scripts that fire automatically at lifecycle events in Claude Code.
+Hooks are shell scripts that Citadel projects into Codex via `.codex/hooks.json`.
 You never invoke them manually. They provide automated quality enforcement.
 
 ## Active Hooks
@@ -32,25 +32,16 @@ You never invoke them manually. They provide automated quality enforcement.
 
 ## Configuration
 
-Hook definitions live in `hooks/hooks-template.json`. They are installed per-project
-via `scripts/install-hooks.js`, which resolves `${CLAUDE_PLUGIN_ROOT}` to absolute paths
-and filters out hook events unsupported by the installed Claude Code version:
+Hook definitions live in `hooks/hooks-template.json`. They are projected per-project
+via `scripts/install-hooks.js`, which translates Citadel's canonical hook template
+into the subset of Codex lifecycle events that Citadel can support:
 
 ```bash
 # From your project directory:
 node /path/to/Citadel/scripts/install-hooks.js
 ```
 
-If Claude Code is unavailable on `PATH`, Citadel falls back to a safe compatibility
-profile and skips newer hook events instead of writing a broken `.claude/settings.json`.
-
-To force the full hook surface after upgrading Claude Code:
-
-```bash
-node /path/to/Citadel/scripts/install-hooks.js --hook-profile latest
-```
-
-This writes resolved hooks into your project's `.claude/settings.json`:
+This writes resolved hooks into your project's `.codex/hooks.json`:
 
 ```json
 {
@@ -72,7 +63,7 @@ This writes resolved hooks into your project's `.claude/settings.json`:
 
 ## Language-Adaptive Typecheck
 
-The `post-edit.js` hook detects your project's language from `.claude/harness.json`
+The `post-edit.js` hook detects your project's language from `.codex/config.toml`
 and runs the appropriate checker:
 
 | Language | Checker | Per-File? |
@@ -82,7 +73,7 @@ and runs the appropriate checker:
 | Go | `go vet` | Package-level |
 | Rust | `cargo check` | Project-level |
 
-Configure in `harness.json`:
+Configure in `.codex/config.toml`:
 
 ```json
 {
@@ -99,7 +90,7 @@ The `post-edit.js` hook can warn agents when they use raw APIs that an installed
 library already handles. This prevents agents from reinventing what your project
 already has.
 
-Configure in `harness.json`:
+Configure in `.codex/config.toml`:
 
 ```json
 {
@@ -130,7 +121,7 @@ Configure in `harness.json`:
 
 **How it works:**
 
-1. On each edit, reads `dependencyPatterns` from harness.json (skips entirely if missing)
+1. On each edit, reads `dependencyPatterns` from `.codex/config.toml` (skips entirely if missing)
 2. Reads `package.json` once per session and caches the dependency list
 3. For each pattern entry: if the dependency is installed, scans the edited file for banned strings
 4. Surfaces warnings (not blocks) — the agent sees the feedback and self-corrects
@@ -151,7 +142,7 @@ Tracks tool failures. After 3 failures:
 - Suggests alternative approaches
 - After 5 trips: escalates to "stop and rethink" message
 
-State stored in `.claude/circuit-breaker-state.json` (gitignored).
+State stored in the runtime data directory, normally `.codex/circuit-breaker-state.json` with legacy `.claude/` fallback.
 
 **Note:** The failure counter increments on every `PostToolUseFailure` event and resets
 when the threshold is hit (tripped). There is no success-reset mechanism — the counter
@@ -169,7 +160,7 @@ Scans recently modified files on session end. Built-in rules:
 | `no-transition-all` | `transition-all` in CSS/JSX |
 | `no-magic-intervals` | Hardcoded `setInterval` numbers |
 
-Add custom rules in `harness.json`:
+Add custom rules in `.codex/config.toml`:
 
 ```json
 {

@@ -14,6 +14,8 @@ function parseArgs(argv) {
       : process.cwd(),
     skillName: argv.find((arg, index) => argv[index - 1] === '--skill') || null,
     dryRun: argv.includes('--dry-run'),
+    prune: argv.includes('--prune'),
+    force: argv.includes('--force'),
   };
 }
 
@@ -24,11 +26,22 @@ function main() {
     projectRoot: args.projectRoot,
     skillName: args.skillName,
     dryRun: args.dryRun,
+    prune: args.prune,
+    force: args.force,
   });
 
   for (const result of results) {
-    const verb = args.dryRun ? 'would project' : 'projected';
-    console.log(`[${verb}] ${result.skillName}`);
+    const verb = args.dryRun ? 'planned' : 'applied';
+    const status = result.status || 'projected';
+    console.log(`[${verb}] ${result.skillName} (${status})`);
+    for (const warning of result.warnings || []) {
+      console.log(`[warning] ${warning}`);
+    }
+  }
+
+  if (results.manifest) {
+    const manifestVerb = args.dryRun ? 'would update' : 'updated';
+    console.log(`[${manifestVerb}] manifest ${results.manifest.path}`);
   }
 }
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * session-tokens.js -- Read real token usage from Claude Code session JSONL files.
+ * session-tokens.js -- Read historical Claude session JSONL for compatibility.
  *
- * This script remains the public CLI entrypoint, but the Claude-specific logic now
- * lives under runtimes/claude-code/adapters/session-tokens.js.
+ * This script remains the public CLI entrypoint, but the legacy reader now lives
+ * under core/legacy/claude/session-tokens.js.
  */
 
 'use strict';
 
-const sessionTokens = require('../runtimes/claude-code/adapters/session-tokens');
+const sessionTokens = require('../core/legacy/claude/session-tokens');
 
 function formatTokens(n) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -40,7 +40,7 @@ function runCli(argv) {
       : {};
     const label = args.includes('--today') ? "Today's" : 'All';
 
-    console.log(`\n${label} Sessions (Claude Code Token Data)`);
+    console.log(`\n${label} Sessions (Legacy Claude Token Data)`);
     console.log('='.repeat(50));
 
     const { sessions, totals } = sessionTokens.readAllSessions(opts);
@@ -75,7 +75,7 @@ function runCli(argv) {
 
   const sessionId = args[0] || sessionTokens.getCurrentSessionId();
   if (!sessionId) {
-    console.error('No session found. Pass a session ID or run from a Claude Code project.');
+    console.error('No legacy session found. Pass a session ID or run from a project with historical Claude session data.');
     return 1;
   }
 

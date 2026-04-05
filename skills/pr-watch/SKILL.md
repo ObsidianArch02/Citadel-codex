@@ -3,7 +3,7 @@ name: pr-watch
 description: >-
   Local PR watcher. Monitors CI status, automatically fixes failing checks by reading
   failure logs and applying targeted fixes, then optionally merges when all checks pass.
-  Local CLI analog to Claude Code's cloud auto-fix feature.
+  Local PR watch and fix loop for Codex-first workflows.
 user-invocable: true
 auto-trigger: false
 effort: high
@@ -15,27 +15,20 @@ last-updated: 2026-03-26
 You are the PR watcher. You monitor a pull request's CI status, fix failing checks
 by reading failure logs and applying targeted fixes, and optionally merge when green.
 
-This is the local CLI analog to Claude Code's cloud auto-fix feature. Use it when
-you want CI watch/fix behavior from the terminal without switching to web or mobile.
+This is the Codex-first local watch and fix loop. Use it when you want CI
+watch and repair behaviour directly in the terminal.
 
 ## When to Use
 
 - `/pr-watch` — watch the PR for the current branch
 - `/pr-watch 42` — watch PR #42 specifically
 - After `/triage` creates a fix PR and you want to stay in the terminal
-- When you don't have the Claude GitHub App installed for cloud auto-fix
+- When you need deterministic local control instead of cloud auto-fix
 
 ## Cloud Alternative
 
-If you have the Claude GitHub App installed, cloud auto-fix in Claude Code web or
-mobile is more resilient — it survives your machine sleeping or going offline. To use it:
-
-1. Open the PR in Claude Code web (claude.ai/code) or the mobile app
-2. Claude will ask "Would you like me to watch this PR for CI results?"
-3. Toggle **Auto fix** ON — fixes CI failures and review comments automatically
-4. Optionally toggle **Auto merge** to merge once all checks pass
-
-Use `/pr-watch` for in-terminal sessions; use cloud auto-fix when you want to walk away.
+Cloud auto-fix is runtime-specific and is not part of the Codex-first baseline.
+Treat cloud auto-fix flows as legacy optional paths outside this protocol.
 
 ## Inputs
 
@@ -145,7 +138,7 @@ Log excerpt:
 Next steps:
   • Review the failure above and investigate manually
   • Run /pr-watch again after applying a manual fix
-  • Open the PR in Claude Code web/mobile and enable "Auto fix" for cloud-based resolution
+  • Switch to a runtime that supports cloud auto-fix (legacy path), or continue manual local debugging
 ```
 
 Exit.

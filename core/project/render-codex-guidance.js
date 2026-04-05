@@ -3,6 +3,7 @@
 'use strict';
 
 function renderList(items) {
+  if (!Array.isArray(items) || items.length === 0) return '- (none)';
   return items.map((item) => `- ${item}`).join('\n');
 }
 
@@ -15,6 +16,14 @@ function renderCodexGuidance(spec) {
     '## Citadel Project Guidance',
     '',
     'This file is the Codex-facing projection of the canonical Citadel project spec.',
+    'It is guidance only, not runtime configuration.',
+    '',
+    '## Guidance Boundary',
+    '',
+    '- `AGENTS.md` carries behavioural guidance for Codex agents.',
+    '- Runtime config lives in `.codex/config.toml`.',
+    '- Mutable runtime state lives in `.codex/state.json`.',
+    '- Do not encode runtime hook policy or mutable counters in this file.',
     '',
     '## Conventions',
     '',

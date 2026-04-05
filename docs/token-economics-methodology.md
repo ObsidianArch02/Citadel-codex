@@ -9,7 +9,7 @@ All figures are estimates based on observed intervention costs — not exact mea
 
 **Metric:** Tier 0-2 resolutions
 **Formula:** `resolutions * 500 tokens`
-**Rationale:** A Tier 3 resolution (full Claude Code context load + multi-turn reasoning) costs
+**Rationale:** A Tier 3 resolution (full Codex context load + multi-turn reasoning) costs
 roughly 500 tokens on average. When the router resolves a request at Tier 0 (cache hit), Tier 1
 (skill match), or Tier 2 (lightweight agent), that cost is avoided entirely. The tier value must
 be present in `meta.tier` of an `agent-runs.jsonl` entry for this to be counted.

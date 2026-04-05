@@ -67,7 +67,7 @@ No new files needed. No build config. Push to main, GitHub Pages deploys automat
 **New Hero structure (single viewport, above the fold):**
 
 ```
-[eyebrow]           "The routing layer for Claude Code"
+[eyebrow]           "The routing layer for Codex"
 [problem headline]  Two lines, large — establishes the BEFORE state
 [subhead]           One sentence solution — the AFTER state
 [demo bar]          Immediately below — the proof
@@ -75,7 +75,7 @@ No new files needed. No build config. Push to main, GitHub Pages deploys automat
 
 #### 2a. Eyebrow
 - Remove the current lightning bolt + "Interactive Demo · /do Intent Router"
-- New: `"Agent orchestration for Claude Code"` — tells visitors the product category immediately
+- New: `"Agent orchestration for Codex"` — tells visitors the product category immediately
 
 #### 2b. Problem Headline (replaces current headline)
 Current: `"Say what you want. / Citadel routes it."`
@@ -85,7 +85,7 @@ New (two-line, large):
 Every command costs the same.
 Most of them shouldn't.
 ```
-Typographically: first line in dim/muted white, second line in full white. The tension is *waste*, not difficulty — framing it as difficulty would insult developers who've figured out Claude Code. Waste is a problem every user feels without necessarily naming it.
+Typographically: first line in dim/muted white, second line in full white. The tension is *waste*, not difficulty — framing it as difficulty would insult developers who've already figured out their agent tooling. Waste is a problem every user feels without necessarily naming it.
 
 #### 2c. Solution Subhead
 Single sentence, directly below the headline:
@@ -187,7 +187,7 @@ The "falls through" connector text reads: `"No match · evaluates next tier →"
 
 **Note on Tier 3 as one card, not two:** Tier 3 is *one* LLM evaluation that produces two possible outputs. Showing it as 3a/3b would imply sequential evaluation. It's a fork, not a sequence — show it as one card with a branch.
 
-**Note on numbering:** Tier 1 is intentionally absent — it's the "Active Context" tier that the router skips in the demo. A small footnote under Tier 0's card: `"Tier 1 (active session context) is evaluated in live Claude Code sessions — skipped in this demo."` This acknowledges the gap without confusing the cascade.
+**Note on numbering:** Tier 1 is intentionally absent — it's the "Active Context" tier that the router skips in the demo. A small footnote under Tier 0's card: `"Tier 1 (active session context) is evaluated in live Codex sessions — skipped in this demo."` This acknowledges the gap without confusing the cascade.
 
 #### 3b. Campaign Depth Section (new)
 This section doesn't exist currently. It's the product story hidden in the Campaigns modal.
@@ -234,26 +234,27 @@ Currently hidden behind the "Install" nav link. A developer who's convinced need
 ```
 Try it now.
 
-Works on any Claude Code project.
-No config required — Citadel detects
-your stack on first run.
+Works on any Codex project.
+Citadel projects its runtime artefacts
+on first setup.
 ```
 
 **Right column (the 3 steps, verbatim from the modal):**
 ```bash
-npm install -g @anthropic-ai/claude-code  # if not installed
+git clone https://github.com/SethGammon/Citadel.git
 
-claude mcp add citadel-harness --scope project
+cd your-project
+node /path/to/Citadel/scripts/setup-codex.js --mode full
 
-cd your-project && /do setup
+codex
 ```
 
-Each step is a numbered code block. Monospace font, green syntax highlighting on the command. Below the steps: `"Full install guide →"` link that opens the Install side panel for the optional harness.json step.
+Each step is a numbered code block. Monospace font, green syntax highlighting on the command. Below the steps: `"Full install guide →"` link that opens the Install side panel for optional `.codex/config.toml` tuning.
 
 #### 3e. Footer
 **Current:** Architecture overview link, GitHub, MIT License.
 
-**New:** Replace the separate "GitHub" link with a combined `★ 123 · Star on GitHub` — one element, one click target, carries both the count and the action. Add "Built with Claude Code" badge. Keep existing links. Light separator line above footer.
+**New:** Replace the separate "GitHub" link with a combined `★ 123 · Star on GitHub` — one element, one click target, carries both the count and the action. Add a `Built for Codex` badge. Keep existing links. Light separator line above footer.
 
 ---
 
@@ -480,7 +481,7 @@ All open questions from the initial draft are resolved:
 1. **Placeholder cycling** — removed entirely. Static placeholder: `"Type any engineering task..."`. Variety lives in the generator buttons.
 2. **Star count in footer** — combined: `★ 123 · Star on GitHub`. One element, one click target.
 3. **Campaign section mobile** — stack vertically, full stop. No 2+1 — it breaks between 400-760px.
-4. **Problem headline** — waste framing: `"Every command costs the same. / Most of them shouldn't."` Difficulty framing was a bad position for a tool built on Claude Code.
+4. **Problem headline** — waste framing: `"Every command costs the same. / Most of them shouldn't."` Difficulty framing was a bad position for a tool built around agent orchestration.
 5. **Tier 3** — one card with a fork, not two entries (3a, 3b). One evaluation produces two outputs. Sequential entries would break the cascade mental model.
 
 ---

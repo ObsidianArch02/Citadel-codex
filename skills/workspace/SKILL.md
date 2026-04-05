@@ -42,7 +42,7 @@ repo. You are the outer loop.
 3. If starting fresh:
    a. Identify which repos are involved (user specifies, or infer from `/infra-audit` manifest)
    b. Verify each repo path exists and is a git repo
-   c. Read each repo's `CLAUDE.md` for conventions
+   c. Read each repo's `AGENTS.md` for conventions (fallback to `CLAUDE.md` only if needed)
    d. Check each repo's `.planning/campaigns/` for active campaigns (avoid collisions)
 
 ### Step 2: DECOMPOSE
@@ -149,7 +149,7 @@ For each repo-campaign in this wave:
 4. Inject cross-repo context:
    - Discovery briefs from prior waves (same as fleet's discovery relay)
    - Cross-repo contract specifications
-   - Relevant sections of other repos' `CLAUDE.md` files
+   - Relevant sections of other repos' `AGENTS.md` files (legacy fallback allowed)
 5. Each agent runs in its own context (the target repo's working directory)
 
 **Agent context injection:**

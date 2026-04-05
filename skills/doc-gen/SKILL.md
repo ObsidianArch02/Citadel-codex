@@ -57,7 +57,7 @@ The skill auto-detects mode from the target:
 
 Before writing a single doc comment, read the project's existing documentation:
 
-1. Read CLAUDE.md for project conventions and doc expectations
+1. Read `AGENTS.md` for project conventions and doc expectations (fallback to legacy `CLAUDE.md` only if present)
 2. Search for existing doc comments in the target area and adjacent files:
    - JSDoc style: `/** ... */` with `@param`, `@returns`, etc.
    - TSDoc style: similar but with `@remarks`, `@example`, etc.

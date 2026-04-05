@@ -60,7 +60,7 @@ For each briefed item (smallest first):
 1. Read the brief
 2. Execute the approach:
    - Create or modify the listed files
-   - Follow the project's conventions (CLAUDE.md)
+   - Follow the project's conventions (`AGENTS.md`, fallback to legacy `CLAUDE.md` if present)
    - Run typecheck after each change
 3. Verify:
    - All quality gates pass
@@ -102,7 +102,7 @@ Description of what needs to be done...
 
 ## Quality Gates
 
-- Never build without reading CLAUDE.md first
+- Never build without reading `AGENTS.md` first (legacy fallback: `CLAUDE.md`)
 - Run typecheck after every file change
 - Mark items as completed only when verification passes
 - If an item is blocked, record the reason and move on

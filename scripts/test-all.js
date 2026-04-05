@@ -6,7 +6,7 @@
  * Runs both hook smoke tests and skill lint checks in sequence.
  * Fast (no network, no LLM calls). Suitable for CI and pre-commit.
  *
- * For execution-based scenario testing (requires claude CLI):
+ * For extended scenario testing:
  *   node scripts/skill-bench.js --execute
  *
  * Usage:
@@ -33,14 +33,14 @@ const HOOK_INSTALLER_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-hook-install
 const CAMPAIGN_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-campaign-core.js');
 const DISCOVERY_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-discovery-core.js');
 const POLICY_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-policy-core.js');
-const CLAUDE_RUNTIME_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-claude-runtime.js');
 const CODEX_RUNTIME_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-codex-runtime.js');
+const CODEX_CONFIG_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-codex-config.js');
 const PROJECT_BOOTSTRAP_TEST = path.join(PLUGIN_ROOT, 'scripts', 'test-project-bootstrap.js');
 
 const STRICT = process.argv.includes('--strict');
 
 console.log('\nCitadel Full Test Suite\n' + '='.repeat(40));
-console.log('Running: hook smoke test + security tests + runtime contract test + runtime registry test + hook event test + skill lint + demo routing check + telemetry core check + coordination core check + hook installer check + campaign core check + discovery core check + policy core check + Claude runtime check + Codex runtime check + project bootstrap check\n');
+console.log('Running: hook smoke test + security tests + runtime contract test + runtime registry test + hook event test + skill lint + demo routing check + telemetry core check + coordination core check + hook installer check + campaign core check + discovery core check + policy core check + Codex runtime check + Codex config check + project bootstrap check\n');
 
 function run(label, scriptPath, extraArgs = []) {
   console.log(`\n> ${label}`);
@@ -72,8 +72,8 @@ const hookInstallerPassed = run('Hook Installer Check', HOOK_INSTALLER_TEST);
 const campaignPassed = run('Campaign Core Check', CAMPAIGN_TEST);
 const discoveryPassed = run('Discovery Core Check', DISCOVERY_TEST);
 const policyPassed = run('Policy Core Check', POLICY_TEST);
-const claudeRuntimePassed = run('Claude Runtime Check', CLAUDE_RUNTIME_TEST);
 const codexRuntimePassed = run('Codex Runtime Check', CODEX_RUNTIME_TEST);
+const codexConfigPassed = run('Codex Config Check', CODEX_CONFIG_TEST);
 const projectBootstrapPassed = run('Project Bootstrap Check', PROJECT_BOOTSTRAP_TEST);
 
 console.log('\n' + '='.repeat(40));
@@ -91,17 +91,17 @@ console.log(`  Hook installers:    ${hookInstallerPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Campaign core:      ${campaignPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Discovery core:     ${discoveryPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Policy core:        ${policyPassed ? 'PASS' : 'FAIL'}`);
-console.log(`  Claude runtime:     ${claudeRuntimePassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Codex runtime:      ${codexRuntimePassed ? 'PASS' : 'FAIL'}`);
+console.log(`  Codex config:       ${codexConfigPassed ? 'PASS' : 'FAIL'}`);
 console.log(`  Project bootstrap:  ${projectBootstrapPassed ? 'PASS' : 'FAIL'}`);
 console.log('');
 
-if (hooksPassed && securityPassed && contractsPassed && runtimeRegistryPassed && hookEventsPassed && skillsPassed && demoPassed && telemetryPassed && coordinationPassed && hookInstallerPassed && campaignPassed && discoveryPassed && policyPassed && claudeRuntimePassed && codexRuntimePassed && projectBootstrapPassed) {
+if (hooksPassed && securityPassed && contractsPassed && runtimeRegistryPassed && hookEventsPassed && skillsPassed && demoPassed && telemetryPassed && coordinationPassed && hookInstallerPassed && campaignPassed && discoveryPassed && policyPassed && codexRuntimePassed && codexConfigPassed && projectBootstrapPassed) {
   console.log('All tests pass.\n');
   console.log('Next steps:');
   console.log('  node scripts/skill-bench.js --list      see benchmark scenarios');
   console.log('  node scripts/skill-bench.js             validate scenario files');
-  console.log('  node scripts/skill-bench.js --execute   run against claude CLI\n');
+  console.log('  node scripts/skill-bench.js --execute   run extended scenario validation\n');
   process.exit(0);
 }
 
@@ -118,10 +118,10 @@ const hookInstallerFail = !hookInstallerPassed ? 512 : 0;
 const campaignFail = !campaignPassed ? 1024 : 0;
 const discoveryFail = !discoveryPassed ? 2048 : 0;
 const policyFail = !policyPassed ? 4096 : 0;
-const claudeRuntimeFail = !claudeRuntimePassed ? 8192 : 0;
-const codexRuntimeFail = !codexRuntimePassed ? 16384 : 0;
+const codexRuntimeFail = !codexRuntimePassed ? 8192 : 0;
+const codexConfigFail = !codexConfigPassed ? 16384 : 0;
 const projectBootstrapFail = !projectBootstrapPassed ? 32768 : 0;
-const code = hookFail | securityFail | contractFail | runtimeRegistryFail | hookEventFail | skillFail | demoFail | telemetryFail | coordinationFail | hookInstallerFail | campaignFail | discoveryFail | policyFail | claudeRuntimeFail | codexRuntimeFail | projectBootstrapFail;
+const code = hookFail | securityFail | contractFail | runtimeRegistryFail | hookEventFail | skillFail | demoFail | telemetryFail | coordinationFail | hookInstallerFail | campaignFail | discoveryFail | policyFail | codexRuntimeFail | codexConfigFail | projectBootstrapFail;
 
 if (!hooksPassed) console.log('Hook smoke test failed. Fix hook issues before proceeding.');
 if (!securityPassed) console.log('Security tests failed. DO NOT SHIP - critical vulnerabilities present.');
@@ -136,8 +136,8 @@ if (!hookInstallerPassed) console.log('Hook installer check failed. Fix runtime 
 if (!campaignPassed) console.log('Campaign core check failed. Fix campaign regressions before shipping.');
 if (!discoveryPassed) console.log('Discovery core check failed. Fix discovery relay regressions before shipping.');
 if (!policyPassed) console.log('Policy core check failed. Fix policy regressions before shipping.');
-if (!claudeRuntimePassed) console.log('Claude runtime check failed. Fix runtime adapter regressions before shipping.');
 if (!codexRuntimePassed) console.log('Codex runtime check failed. Fix runtime adapter regressions before shipping.');
+if (!codexConfigPassed) console.log('Codex config check failed. Fix config reader or migrator regressions before shipping.');
 if (!projectBootstrapPassed) console.log('Project bootstrap check failed. Fix canonical guidance bootstrap before shipping.');
 console.log('');
 process.exit(code);

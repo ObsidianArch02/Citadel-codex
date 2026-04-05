@@ -1,12 +1,13 @@
 ---
 name: already-configured
 skill: setup
-description: setup detects existing harness.json and confirms or skips re-initialization
+description: setup detects existing codex setup artefacts and avoids silent overwrite
 tags: [fringe]
 input: /setup
 state: with-campaign
 assert-contains:
-  - config
+  - setup-codex
+  - skipped
 assert-not-contains:
   - ENOENT
   - TypeError
@@ -23,8 +24,8 @@ or ask before overwriting, rather than blindly re-running setup.
 
 ## Expected Behavior
 
-1. Detects existing configuration (harness.json or equivalent)
+1. Detects existing Codex configuration (`.codex/config.toml` or `AGENTS.md`)
 2. Informs the user that configuration already exists
-3. Asks to confirm before overwriting, or reports the current config
+3. Keeps existing guidance unless overwrite is explicitly requested
 4. Does not silently overwrite existing setup
 5. No crash or raw error output

@@ -4,16 +4,17 @@
  * skill-bench.js — Scenario-based benchmark runner for Citadel skills
  *
  * Discovers scenario files in skills/{name}/__benchmarks__/*.md, sets up
- * isolated temp project states, invokes Claude Code CLI in --print mode,
+ * isolated temp project states, executes a configured runtime command,
  * and asserts the output against expected patterns.
  *
  * TWO MODES:
  *   Static (default): validates scenario files + state setup. Zero cost.
- *   Execute (--execute): runs scenarios against the real claude CLI.
+ *   Execute (--execute): runs scenarios against a configured Codex command.
  *
  * Usage:
  *   node scripts/skill-bench.js                            # static validate all
- *   node scripts/skill-bench.js --execute                  # run against claude
+ *   node scripts/skill-bench.js --execute                  # run against configured runtime command
+ *   node scripts/skill-bench.js --execute --runtime-cmd "codex exec {prompt}"
  *   node scripts/skill-bench.js --execute --verify-hooks   # also assert hooks fired
  *   node scripts/skill-bench.js --skill dashboard          # filter by skill name
  *   node scripts/skill-bench.js --tag fringe               # filter by tag
@@ -58,6 +59,7 @@ function getArgValue(flag) {
 
 const skillFilter = getArgValue('--skill');
 const tagFilter   = getArgValue('--tag');
+const runtimeCmdTemplateArg = getArgValue('--runtime-cmd');
 
 // ── Scenario parsing ──────────────────────────────────────────────────────────
 
@@ -202,7 +204,7 @@ function discoverScenarios() {
  */
 const STATES = {
   'clean': (tmpDir) => {
-    // Empty project — no .planning/, no .claude/
+    // Empty project — no .planning/, no .codex/
     // Nothing to write
   },
 
@@ -246,17 +248,27 @@ const STATES = {
       'Blocking: none',
     ].join('\n'));
 
-    // Add harness.json so setup/already-configured tests the right code path
-    const claudeDir = path.join(tmpDir, '.claude');
-    fs.mkdirSync(claudeDir, { recursive: true });
-    fs.writeFileSync(path.join(claudeDir, 'harness.json'), JSON.stringify({
-      language: 'typescript', framework: 'react', packageManager: 'npm',
-      typecheck: { command: 'npm run typecheck', perFile: true },
-      test: { command: 'npm test', framework: 'jest' },
-      qualityRules: { builtIn: ['no-confirm-alert', 'no-transition-all'], custom: [] },
-      protectedFiles: ['.claude/harness.json'],
-      features: { intakeScanner: true, telemetry: true },
-    }, null, 2));
+    // Add codex config so setup/already-configured tests use the current runtime surface.
+    const codexDir = path.join(tmpDir, '.codex');
+    fs.mkdirSync(codexDir, { recursive: true });
+    fs.writeFileSync(path.join(codexDir, 'config.toml'), [
+      'language = "typescript"',
+      'framework = "react"',
+      'packageManager = "npm"',
+      'protectedFiles = [".codex/config.toml"]',
+      '',
+      '[typecheck]',
+      'command = "npm run typecheck"',
+      'perFile = true',
+      '',
+      '[test]',
+      'command = "npm test"',
+      'framework = "jest"',
+      '',
+      '[features]',
+      'intakeScanner = true',
+      'telemetry = true',
+    ].join('\n'));
 
     // Add some telemetry
     const telemetryDir = path.join(tmpDir, '.planning', 'telemetry');
@@ -337,7 +349,7 @@ const STATES = {
       '- Every API call logged with timestamp, method, path, status, duration_ms',
       '- No existing tests broken',
     ].join('\n'));
-    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), [
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), [
       '# Test Project',
       '',
       'A simple Express API.',
@@ -412,7 +424,7 @@ const STATES = {
       "export { StatusBadge } from './StatusBadge';",
     ].join('\n'));
 
-    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), [
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), [
       '# Test Project',
       '',
       'A TypeScript React application.',
@@ -432,7 +444,7 @@ const STATES = {
       execSync('git config user.email "bench@citadel.test"', { cwd: tmpDir, stdio: 'pipe' });
       execSync('git config user.name "Bench"', { cwd: tmpDir, stdio: 'pipe' });
     } catch { /* ignore git init errors in restricted envs */ }
-    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), [
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), [
       '# Test Project',
       '',
       'A TypeScript project.',
@@ -461,7 +473,7 @@ function setupProjectState(state) {
       const { spawnSync } = require('child_process');
       spawnSync('node', [path.join(PLUGIN_ROOT, 'hooks_src', 'init-project.js')], {
         cwd: tmpDir,
-        env: { ...process.env, CLAUDE_PROJECT_DIR: tmpDir, CLAUDE_PLUGIN_DATA: path.join(tmpDir, '.claude') },
+        env: { ...process.env, CITADEL_PROJECT_DIR: tmpDir, CITADEL_PLUGIN_DATA: path.join(tmpDir, '.codex') },
         encoding: 'utf8', timeout: 10000,
       });
     } catch { /* best-effort — don't fail scenario setup */ }
@@ -498,50 +510,64 @@ function assertHooksFired(tmpDir, before) {
   return failures;
 }
 
-// ── Claude CLI detection ──────────────────────────────────────────────────────
+// ── Runtime command resolution ────────────────────────────────────────────────
 
-let _claudeCmd = undefined;
+let _runtimeCommandTemplate = undefined;
 
-function findClaudeCLI() {
-  if (_claudeCmd !== undefined) return _claudeCmd;
+function splitCommand(cmd) {
+  const matches = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+  return matches.map((m) => m.replace(/^"(.*)"$/, '$1'));
+}
 
-  const candidates = ['claude', 'claude.exe', 'npx claude'];
-  for (const cmd of candidates) {
-    try {
-      const [bin, ...binArgs] = cmd.split(' ');
-      execFileSync(bin, [...binArgs, '--version'], { stdio: 'pipe', timeout: 5000 });
-      _claudeCmd = cmd;
-      return cmd;
-    } catch { /* not found */ }
+function findRuntimeCommandTemplate() {
+  if (_runtimeCommandTemplate !== undefined) return _runtimeCommandTemplate;
+
+  const configured = runtimeCmdTemplateArg || process.env.CITADEL_BENCH_RUNTIME_CMD || null;
+  if (!configured) {
+    _runtimeCommandTemplate = null;
+    return null;
   }
-  _claudeCmd = null;
-  return null;
+
+  const [bin] = splitCommand(configured);
+  if (!bin) {
+    _runtimeCommandTemplate = null;
+    return null;
+  }
+
+  try {
+    execFileSync(bin, ['--version'], { stdio: 'pipe', timeout: 5000 });
+    _runtimeCommandTemplate = configured;
+    return configured;
+  } catch {
+    _runtimeCommandTemplate = null;
+    return null;
+  }
 }
 
 // ── Scenario execution ────────────────────────────────────────────────────────
 
 /**
- * Run a scenario against the real claude CLI.
+ * Run a scenario against the configured runtime command.
  * Returns { output: string, error: string|null, timedOut: boolean }
  */
-function executeScenario(scenario, claudeCmd, tmpDir) {
-  const [bin, ...binArgs] = claudeCmd.split(' ');
+function executeScenario(scenario, runtimeCommandTemplate, tmpDir) {
+  const escapedPrompt = JSON.stringify(scenario.input);
+  const command = runtimeCommandTemplate.includes('{prompt}')
+    ? runtimeCommandTemplate.replace(/\{prompt\}/g, escapedPrompt)
+    : `${runtimeCommandTemplate} ${escapedPrompt}`;
+
   try {
-    const output = execFileSync(
-      bin,
-      [...binArgs, '--plugin-dir', PLUGIN_ROOT, '--print', '--dangerously-skip-permissions', scenario.input],
-      {
-        cwd: tmpDir,
-        timeout: scenario.timeout,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          CLAUDE_PROJECT_DIR: tmpDir,
-          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1',
-        },
-        maxBuffer: 10 * 1024 * 1024, // 10MB
-      }
-    );
+    const output = execSync(command, {
+      cwd: tmpDir,
+      timeout: scenario.timeout,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CITADEL_PROJECT_DIR: tmpDir,
+        CITADEL_PLUGIN_DATA: path.join(tmpDir, '.codex'),
+      },
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+    });
     return { output, error: null, timedOut: false };
   } catch (err) {
     if (err.killed) {
@@ -683,19 +709,19 @@ function main() {
     process.exit(0);
   }
 
-  // Detect claude CLI for execute mode
-  const claudeCmd = EXECUTE_MODE ? findClaudeCLI() : null;
-  const canExecute = EXECUTE_MODE && claudeCmd !== null;
+  // Resolve runtime command for execute mode.
+  const runtimeCommandTemplate = EXECUTE_MODE ? findRuntimeCommandTemplate() : null;
+  const canExecute = EXECUTE_MODE && runtimeCommandTemplate !== null;
 
-  if (EXECUTE_MODE && !claudeCmd) {
-    console.warn('\nWARN: claude CLI not found in PATH — running static validation only.');
-    console.warn('Install Claude Code CLI to enable execution testing.\n');
+  if (EXECUTE_MODE && !runtimeCommandTemplate) {
+    console.warn('\nWARN: runtime command not configured or unavailable — running static validation only.');
+    console.warn('Set --runtime-cmd "codex ... {prompt}" or CITADEL_BENCH_RUNTIME_CMD.\n');
   }
 
   const mode = canExecute ? 'execute' : 'static';
   console.log(`\nCitadel Skill Bench (${mode} mode)\n` + '='.repeat(40));
   if (mode === 'static') {
-    console.log('Validating scenario structure. Use --execute to run against claude CLI.\n');
+    console.log('Validating scenario structure. Use --execute with --runtime-cmd to run scenario execution.\n');
   }
 
   const allResults = [];
@@ -723,7 +749,7 @@ function main() {
       try {
         tmpDir = setupProjectState(scenario.state);
         const telemetryBefore = VERIFY_HOOKS ? snapshotTelemetry(tmpDir) : null;
-        const execResult = executeScenario(scenario, claudeCmd, tmpDir);
+        const execResult = executeScenario(scenario, runtimeCommandTemplate, tmpDir);
 
         if (execResult.timedOut) {
           result = {
@@ -835,8 +861,8 @@ function main() {
   } else if (mode === 'static') {
     console.log(`All ${totalPass} scenario files are valid.\n`);
     if (!EXECUTE_MODE) {
-      console.log('To run against the live claude CLI:');
-      console.log('  node scripts/skill-bench.js --execute\n');
+      console.log('To execute scenarios against Codex:');
+      console.log('  node scripts/skill-bench.js --execute --runtime-cmd "codex ... {prompt}"\n');
     }
   } else {
     console.log(`All ${totalPass} scenarios passed.\n`);

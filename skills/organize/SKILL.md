@@ -142,7 +142,7 @@ Check for mess that has nothing to do with code architecture.
      `Cargo.toml`, `pyproject.toml`, `go.mod`, `Makefile`, `Dockerfile`,
      `docker-compose*.yml`, `.env*`, `.editorconfig`, `.gitignore`,
      `.gitattributes`, `.npmrc`, `.nvmrc`, `.node-version`, `.tool-versions`
-   - Docs: `README*`, `LICENSE*`, `CHANGELOG*`, `CONTRIBUTING*`, `CLAUDE.md`,
+   - Docs: `README*`, `LICENSE*`, `CHANGELOG*`, `CONTRIBUTING*`, `AGENTS.md`,
      `QUICKSTART*`, `CODE_OF_CONDUCT*`, `SECURITY*`
    - CI/lock files: `*.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`,
      `Gemfile.lock`, `.github/`, `.husky/`

@@ -69,7 +69,7 @@ Blocking: {any blockers}
 Each Archon invocation is amnesiac. It rebuilds context from:
 
 1. **Campaign file** — state, decisions, progress
-2. **CLAUDE.md** — project conventions
+2. **`AGENTS.md`** — project conventions
 3. **Recent files** — what changed since last session
 
 This is why the campaign file must be thorough. Everything Archon needs

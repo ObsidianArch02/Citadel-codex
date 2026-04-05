@@ -37,7 +37,7 @@ Do NOT use Archon for:
 
 On every invocation:
 
-1. Read CLAUDE.md (project architecture and conventions)
+1. Read `AGENTS.md` (project architecture and conventions; fallback to legacy `CLAUDE.md` only if present)
 2. Check `.planning/campaigns/` for active campaigns (not in `completed/`)
 3. Check `.planning/coordination/claims/` for scope claims from other agents
 4. Determine mode:
@@ -90,8 +90,8 @@ After creating the campaign, if the estimated session count is 2 or more:
    ```
 3. If **yes**:
    - Write `.planning/daemon.json` with `status: "running"`, `campaignSlug`, `budget: {total * 2}` (2x estimated as safety margin), `costPerSession: {per-session estimate}`
-   - If RemoteTrigger is available: create chain + watchdog triggers (same as `/daemon start`)
-   - If RemoteTrigger is unavailable: write daemon.json only (the SessionStart hook bridge handles continuation)
+   - Default Codex path: write daemon.json only (SessionStart hook bridge handles continuation)
+   - Optional legacy path: if a runtime-specific remote scheduler exists, wire it as a best-effort accelerator
    - Log `daemon-start` to telemetry
    - Output: "Daemon activated. Budget: ${budget}. Use `/daemon status` to check progress."
 4. If **no**: continue to Step 3 normally. Campaign exists, user continues manually.
@@ -124,8 +124,8 @@ For each phase:
    node .citadel/scripts/telemetry-log.cjs --event agent-start --agent {delegate-name} --session {campaign-slug}
    ```
 3. **Delegate**: Spawn a sub-agent with full context injection:
-   - CLAUDE.md content
-   - `.claude/agent-context/rules-summary.md`
+   - `AGENTS.md` content
+   - projected rules summary artifact
    - **Map slice** (if `.planning/map/index.json` exists): run
      `node scripts/map-index.js --query "<phase scope keywords>" --max-files 15`
      and inject the results. If the index does not exist, skip silently.
@@ -185,7 +185,7 @@ After each phase completes:
 2. Read it. Does it meet the project's quality bar?
    - TypeScript strict mode? Types correct, not `any`-heavy?
    - Clean structure? Not a 500-line monolith?
-   - Follows project conventions from CLAUDE.md?
+   - Follows project conventions from `AGENTS.md` (legacy fallback: `CLAUDE.md`)?
 3. If view files (.tsx, .jsx, .vue, .svelte, .html) were modified, invoke
    /live-preview to verify components render correctly
 4. If quality is acceptable: continue
@@ -254,8 +254,7 @@ When all phases are done:
 
    To watch CI automatically:
      Local  →  /pr-watch <N>          fixes failures in this terminal
-     Cloud  →  open in Claude Code web or mobile, toggle "Auto fix" ON
-               (fixes CI + review comments remotely; requires Claude GitHub App)
+     Cloud  →  legacy Claude-only path; unavailable in Codex-first flow
    ---
    ```
 
@@ -276,7 +275,7 @@ When invoked without direction:
 
 - Every phase must produce a verifiable result
 - Campaign file must be updated after every phase
-- Sub-agents must receive full context injection (CLAUDE.md + rules-summary)
+- Sub-agents must receive full context injection (`AGENTS.md` + projected rules summary)
 - Never re-delegate the same failing work without changing the approach
 - Continuation State must be written before context runs low
 - Direction alignment must pass every 2 phases (Step 4)
@@ -337,7 +336,7 @@ After decomposing phases, compare estimated scope to input complexity:
 - If input mentions a single file and decomposition is cross-domain: narrow scope
 
 ### Trust Gating
-Read trust level from `harness.json` (via `readTrustLevel()` in harness-health-util.js):
+Read trust level from `.codex/config.toml` (legacy fallback: `.claude/harness.json`):
 - **Novice** (0-4 sessions): Confirm before starting any campaign. Show recovery instructions after each phase ("to undo: git revert HEAD~{N}").
 - **Familiar** (5-19 sessions): Confirm only for campaigns estimated > $10 or > 3 phases.
 - **Trusted** (20+ sessions): No confirmation for amber actions. Only red actions require confirmation.

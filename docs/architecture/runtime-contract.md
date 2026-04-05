@@ -1,6 +1,6 @@
 # Runtime Contract
 
-> last-updated: 2026-03-30
+> last-updated: 2026-04-05
 
 This document defines the intended runtime-agnostic architecture boundary for
 Citadel.
@@ -10,7 +10,7 @@ Citadel.
 Citadel should be the system of record for orchestration, campaigns, telemetry,
 skills, policy, and coordination.
 
-Claude Code and Codex should be treated as runtimes that project Citadel
+Codex should be treated as the active runtime that projects Citadel
 concepts into runtime-native guidance files, hooks, agents, and surfaces.
 
 ## Canonical Layers
@@ -19,7 +19,7 @@ Citadel should be organized into three layers:
 
 1. `core/` — runtime-agnostic orchestration logic
 2. `runtimes/` — runtime adapters and generators
-3. `surfaces/` — slash commands, plugin packaging, CLI entrypoints, and future
+3. `surfaces/` — CLI entrypoints and future
    MCP or desktop integrations
 
 ## Canonical Sources of Truth
@@ -31,13 +31,21 @@ Citadel should be organized into three layers:
 
 Generated runtime projections:
 
-- `CLAUDE.md`
 - `AGENTS.md`
-- `.claude/settings.json`
 - `.codex/hooks.json`
 - `.codex/config.toml`
+- `.codex/state.json`
 - `.codex/agents/*.toml`
 - `.agents/skills/*/agents/openai.yaml`
+
+Canonical runtime config sources:
+
+- `.citadel/project.md` — guidance only
+- `.codex/config.toml` — Codex runtime config
+- `.codex/state.json` — Codex mutable state
+- `.claude/harness.json` — legacy fallback only
+
+See [`docs/config/codex-runtime-config.md`](/Users/sukhoina/Downloads/Citadel-codex/docs/config/codex-runtime-config.md) for the field-level schema, precedence rules, and migration path.
 
 ## Runtime Contract Shape
 
@@ -78,7 +86,7 @@ Citadel should reason in canonical event IDs, regardless of runtime source:
 - `worktree_create`
 - `worktree_remove`
 
-Runtime adapters are responsible for mapping native runtime events into this
+The Codex adapter is responsible for mapping native runtime events into this
 shared vocabulary and declaring unsupported events explicitly.
 
 ## Capability Model

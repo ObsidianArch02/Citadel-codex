@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Citadel · Claude Code Agent Harness</title>
+  <title>Citadel · Codex Agent Harness</title>
   <style>
     :root {
       --bg: #0d1117;
@@ -1279,7 +1279,7 @@
   <!-- Hero -->
   <div class="hero">
     <div class="hero-eyebrow">
-      <span>Agent orchestration for Claude Code</span>
+      <span>Agent orchestration for Codex</span>
       <span class="eyebrow-sep">·</span>
       <span class="live-agents"><span class="live-dot"></span><span id="live-agent-count">3</span> agents active</span>
     </div>
@@ -1485,7 +1485,7 @@
           <div class="how-example" style="--ex-color:var(--green)" data-cmd="rename AuthService to AuthHandler">/do rename AuthService to AuthHandler</div>
           <div class="how-example" style="--ex-color:var(--green)" data-cmd="commit my changes">/do commit my changes</div>
         </div>
-        <p class="cascade-footnote">Tier 1 (active session context) is evaluated in live Claude Code sessions — skipped in this demo.</p>
+        <p class="cascade-footnote">Tier 1 (active session context) is evaluated in live Codex sessions — skipped in this demo.</p>
       </div>
     </details>
 
@@ -1702,29 +1702,29 @@
     <div class="install-inner">
       <div class="install-left">
         <h2>Try it now.</h2>
-        <p>Works on any Claude Code project.<br>No config required — Citadel detects your stack on first run.</p>
+        <p>Works on any Codex project.<br>Citadel projects guidance, hooks, and state on first setup.</p>
       </div>
       <div class="install-right">
         <div class="install-steps">
           <div class="install-step">
             <div class="install-step-num">1</div>
             <div class="install-step-body">
-              <div class="install-step-label">Install Claude Code</div>
-              <div class="install-code">npm install -g @anthropic-ai/claude-code</div>
+              <div class="install-step-label">Clone Citadel</div>
+              <div class="install-code">git clone https://github.com/SethGammon/Citadel.git</div>
             </div>
           </div>
           <div class="install-step">
             <div class="install-step-num">2</div>
             <div class="install-step-body">
-              <div class="install-step-label">Add Citadel as a plugin</div>
-              <div class="install-code">claude plugin add https://github.com/SethGammon/Citadel</div>
+              <div class="install-step-label">Project Codex artefacts</div>
+              <div class="install-code">cd your-project &amp;&amp; node /path/to/Citadel/scripts/setup-codex.js --mode full</div>
             </div>
           </div>
           <div class="install-step">
             <div class="install-step-num">3</div>
             <div class="install-step-body">
-              <div class="install-step-label">Open any project and start</div>
-              <div class="install-code">cd your-project &amp;&amp; /do setup</div>
+              <div class="install-step-label">Open the project in Codex</div>
+              <div class="install-code">cd your-project &amp;&amp; codex</div>
             </div>
           </div>
         </div>
@@ -1736,8 +1736,8 @@
   <!-- Final CTA — single copy-pasteable command -->
   <div class="final-cta">
     <div class="final-cta-label">One command. Any project.</div>
-    <div class="final-cta-cmd" onclick="navigator.clipboard.writeText('claude plugin add https://github.com/SethGammon/Citadel').then(()=>{this.querySelector('.final-cta-copy').textContent='copied!';setTimeout(()=>{this.querySelector('.final-cta-copy').textContent='copy'},1500)})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
-      claude plugin add https://github.com/SethGammon/Citadel
+    <div class="final-cta-cmd" onclick="navigator.clipboard.writeText('node /path/to/Citadel/scripts/setup-codex.js --mode full').then(()=>{this.querySelector('.final-cta-copy').textContent='copied!';setTimeout(()=>{this.querySelector('.final-cta-copy').textContent='copy'},1500)})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+      node /path/to/Citadel/scripts/setup-codex.js --mode full
       <button class="final-cta-copy">copy</button>
     </div>
   </div>
@@ -1749,7 +1749,7 @@
   </button>
 
   <footer>
-    <span>Citadel — Agent Orchestration for Claude Code &nbsp;·&nbsp; <a href="https://repo-explainer.com/SethGammon/Citadel/">Architecture overview</a></span>
+    <span>Citadel — Agent Orchestration for Codex &nbsp;·&nbsp; <a href="https://repo-explainer.com/SethGammon/Citadel/">Architecture overview</a></span>
     <span>
       <a id="footer-star" href="https://github.com/SethGammon/Citadel">★ Star on GitHub</a>
       &nbsp;·&nbsp;
@@ -1774,31 +1774,31 @@
       <div class="panel-step">
         <div class="panel-step-num">1</div>
         <div class="panel-step-body">
-          <div class="panel-step-label">Install Claude Code</div>
-          <div class="panel-code">npm install -g @anthropic-ai/claude-code</div>
-          <div class="panel-note">Requires Node 18+ and an Anthropic API key or Claude.ai Pro.</div>
+          <div class="panel-step-label">Clone Citadel</div>
+          <div class="panel-code">git clone https://github.com/SethGammon/Citadel.git</div>
+          <div class="panel-note">Requires Node 18+ and a local Codex installation.</div>
         </div>
       </div>
       <div class="panel-step">
         <div class="panel-step-num">2</div>
         <div class="panel-step-body">
-          <div class="panel-step-label">Add Citadel as a plugin</div>
-          <div class="panel-code">claude plugin add https://github.com/SethGammon/Citadel</div>
-          <div class="panel-note">Installs once globally. Skills and agents become available in every project.</div>
+          <div class="panel-step-label">Project Codex artefacts</div>
+          <div class="panel-code">cd your-project<br>node /path/to/Citadel/scripts/setup-codex.js --mode full</div>
+          <div class="panel-note">Writes `AGENTS.md`, `.codex/config.toml`, `.codex/state.json`, and `.codex/hooks.json` into the project.</div>
         </div>
       </div>
       <div class="panel-step">
         <div class="panel-step-num">3</div>
         <div class="panel-step-body">
-          <div class="panel-step-label">Open any project and start</div>
-          <div class="panel-code">cd your-project<br>claude<br>/do describe what you want</div>
-          <div class="panel-note">The SessionStart hook auto-scaffolds <code style="font-family:'SF Mono',monospace;color:var(--cyan);font-size:11px">.planning/</code> and installs hooks on first run. No manual setup required.</div>
+          <div class="panel-step-label">Open the project in Codex</div>
+          <div class="panel-code">cd your-project<br>codex</div>
+          <div class="panel-note">The SessionStart hook auto-scaffolds <code style="font-family:'SF Mono',monospace;color:var(--cyan);font-size:11px">.planning/</code> and Citadel keeps the projected runtime artefacts in sync.</div>
         </div>
       </div>
       <div class="panel-section-label">Optional: per-project config</div>
       <div class="campaign-block">
-        <div class="campaign-block-title">Generate harness.json</div>
-        <div class="campaign-block-body">Run <code>/do setup</code> to create <code>.claude/harness.json</code> with project-specific settings — hook toggles, agent timeouts, doc sync, quality rules. All settings have working defaults so this step is optional.</div>
+        <div class="campaign-block-title">Review `.codex/config.toml`</div>
+        <div class="campaign-block-body">Tune project-specific settings in <code>.codex/config.toml</code> — hook toggles, agent timeouts, doc sync, quality rules. Legacy <code>.claude/harness.json</code> is fallback-only.</div>
       </div>
     </div>
   </div>
@@ -1854,7 +1854,7 @@
       <div class="panel-section-label">Utilities</div>
       <div class="skill-list">
         <div class="skill-row"><span class="skill-name">/session-handoff</span><span class="skill-desc">Compresses current session context for transfer to a new session.</span></div>
-        <div class="skill-row"><span class="skill-name">/setup</span><span class="skill-desc">First-run harness configuration. Generates harness.json and registers skill keywords.</span></div>
+        <div class="skill-row"><span class="skill-name">/setup</span><span class="skill-desc">First-run runtime setup. Projects Codex config and synchronises skill metadata.</span></div>
         <div class="skill-row"><span class="skill-name">/triage</span><span class="skill-desc">Pulls open GitHub issues and PRs, classifies by severity, searches codebase for context.</span></div>
       </div>
     </div>
@@ -1867,7 +1867,7 @@
       <button class="panel-close" onclick="closePanel()">✕</button>
     </div>
     <div class="panel-body">
-      <div class="panel-note" style="margin-bottom:20px">Hooks fire automatically on Claude Code lifecycle events — no agent intervention needed.</div>
+      <div class="panel-note" style="margin-bottom:20px">Hooks fire automatically on the projected Codex lifecycle surface — no agent intervention needed.</div>
       <table class="hook-table">
         <thead><tr><th style="width:145px">Event</th><th>What it does</th></tr></thead>
         <tbody>
@@ -1889,7 +1889,7 @@
       <div class="panel-section-label" style="margin-top:24px">Configuration</div>
       <div class="campaign-block">
         <div class="campaign-block-title">Enable / disable hooks</div>
-        <div class="campaign-block-body">Toggle individual hooks in <code>.claude/harness.json</code> under the <code>hooks</code> key. Example: <code>"postToolUse": { "enabled": false }</code></div>
+        <div class="campaign-block-body">Toggle individual hooks in <code>.codex/config.toml</code> under the <code>hooks</code> key. Legacy `.claude/harness.json` remains compatibility-only.</div>
       </div>
     </div>
   </div>

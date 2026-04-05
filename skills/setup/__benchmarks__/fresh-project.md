@@ -1,14 +1,15 @@
 ---
 name: fresh-project
 skill: setup
-description: setup walks through configuration steps and creates harness.json on a clean project
+description: setup selects codex runtime and plans full project setup on a clean project
 tags: [happy-path]
 input: /setup
 state: clean
 skip-execute: true
 assert-contains:
-  - setup
-  - Q1
+  - setup-codex
+  - dry-run
+  - full
 assert-not-contains:
   - ENOENT
   - TypeError
@@ -19,13 +20,13 @@ assert-not-contains:
 
 ## What This Tests
 
-A user runs `/setup` for the first time on a clean project. The skill must walk
-through the configuration steps and produce or describe the harness.json file.
+A user runs `/setup` for the first time on a clean project. The skill should
+route to the Codex setup surface and show planned changes.
 
 ## Expected Behavior
 
-1. Detects no existing configuration
-2. Walks through one or more setup steps (project name, hooks, permissions, etc.)
-3. References harness.json as the output configuration
-4. Produces actionable output (steps taken or next steps)
+1. Detects runtime and chooses the Codex setup branch
+2. Uses `node scripts/setup-codex.js --mode full --dry-run` as the first command
+3. References Codex artefacts (`.codex/config.toml`, `.codex/state.json`, `AGENTS.md`)
+4. Produces actionable output with mode and apply command
 5. No crash or raw error output

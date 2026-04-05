@@ -229,7 +229,8 @@ Quality rules appended to .claude/harness.json: {M}
 {  "name": "auto-{slug}-1", "pattern": "...", ... }   ← one line per rule added
 
 Next: review .planning/knowledge/ and promote useful rules to your project's
-      CLAUDE.md or coding-style rules for permanent enforcement.
+      AGENTS.md or coding-style rules for permanent enforcement. Legacy
+      CLAUDE.md only applies if the project has not migrated yet.
 ```
 
 ## Fringe Case Handling

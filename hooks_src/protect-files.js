@@ -5,9 +5,9 @@
  *
  * Blocks edits to files that should not be modified during agent sessions.
  * Blocks reads on .env files to prevent agents from reading secrets.
- * Protected paths are configurable via harness.json protectedFiles array.
+ * Protected paths are configurable via the Citadel runtime config protectedFiles array.
  *
- * Default protected: .claude/harness.json
+ * Default protected: .codex/config.toml, .codex/state.json, .claude/harness.json
  * Users can add their own patterns.
  *
  * Fail-closed: unexpected errors exit 2 (block) rather than 0 (allow).
@@ -126,6 +126,8 @@ function run(input) {
   // Edit/Write events: check against protected patterns
   const config = health.readConfig();
   const protectedPatterns = config.protectedFiles || [
+    '.codex/config.toml',
+    '.codex/state.json',
     '.claude/harness.json',
   ];
 
@@ -134,7 +136,7 @@ function run(input) {
       health.logBlock('protect-files', 'blocked', `${toolName} ${relativePath} (pattern: ${pattern})`);
       hookOutput('protect-files', 'blocked',
         `[protect-files] Blocked: ${relativePath} is protected by pattern "${pattern}". ` +
-        `Remove the pattern from harness.json protectedFiles to allow edits.`,
+        `Remove the pattern from the Citadel runtime config protectedFiles list to allow edits.`,
         { file: relativePath, pattern, tool: toolName }
       );
       process.exit(2); // Block the edit
